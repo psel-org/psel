@@ -21,7 +21,7 @@ maintainer:         kamoii
 -- category:
 extra-source-files:
   CHANGELOG.md
-  README.org
+  README.md
 
 library
   exposed-modules:
