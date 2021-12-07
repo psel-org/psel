@@ -29,6 +29,7 @@ Data types | Vector with constructor tag symbol in first slot and arguments in t
 * [ ] Minimal example and add Usage document
 * [ ] Support Aff
 * [ ] Write some tests
+* [ ] Add flake.nix
 
 ## References
 
