@@ -10,11 +10,12 @@ import RIO hiding (bracket)
 import RIO.Text.Partial qualified as T
 
 displayFeature :: Feature -> Utf8Builder
-displayFeature Feature{name, requires, defVars} =
+displayFeature Feature{name, requires, requireFFI, defVars} =
     mconcat . intersperse "\n" $
         mconcat
             [ [headLine]
             , requireLines
+            , requireFFILine
             , defVarLines
             , [provideLine]
             ]
@@ -23,13 +24,19 @@ displayFeature Feature{name, requires, defVars} =
         ";; -*- lexical-binding: t; -*-"
 
     requireLines =
-        map (\f -> displaySExp $ list [symbol "require", quote (symbol f)]) requires
+        map (onFeature "require") requires
+
+    requireFFILine =
+        map (onFeature "require") $ maybeToList requireFFI
 
     defVarLines =
         map displayDefVar defVars
 
     provideLine =
-        displaySExp $ list [symbol "provide", quote (symbol name)]
+        onFeature "provide" name
+
+    onFeature op (FeatureName name) =
+        displaySExp $ list [symbol op, quote (symbol name)]
 
 displayDefVar :: DefVar -> Utf8Builder
 displayDefVar DefVar{name, definition} =

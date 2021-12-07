@@ -38,17 +38,28 @@ transpile
         , moduleExports
         , moduleForeign
         , moduleDecls
-        } = Feature{name, requires, defVars}
+        } = Feature{name, requires, requireFFI, defVars}
       where
-        name = moduleName' moduleName
-        requires = map (moduleName' . snd) moduleImports
-        defVars = mconcat $ map (decl moduleName) moduleDecls
+        name =
+            featureName moduleName
+        requires =
+            map (featureName . snd) moduleImports
+        defVars =
+            mconcat $ map (decl moduleName) moduleDecls
+        requireFFI =
+            if null moduleForeign
+                then Nothing
+                else Just $ featureFFIName moduleName
 
 -- モジュール名はそのまま Feqatureとする
 -- キャメルケース,ドット区切りはelispの規約に沿っていないが,
 -- PSからの生成ファイルということ
-moduleName' :: ModuleName -> Symbol
-moduleName' (ModuleName t) = UnsafeSymbol t
+featureName :: ModuleName -> FeatureName
+featureName (ModuleName t) = FeatureName $ UnsafeSymbol t
+
+-- PSのモジュール名では _ は多分使わないので大丈夫かな？
+featureFFIName :: ModuleName -> FeatureName
+featureFFIName (ModuleName s) = FeatureName $ UnsafeSymbol $ s <> "._FFI"
 
 -- マクロや組込関数(built-ins, special-formも含む)の名前衝突も値スロットだけ使う分には考える必要はない。
 -- シンタックス上のキーワードではなく特別な関数が関数スロットに設定されている。

@@ -9,7 +9,7 @@ import Data.Aeson.Types (parseEither)
 import Language.PureScript (ModuleName (ModuleName))
 import Language.PureScript.CoreFn qualified as P
 import Language.PureScript.CoreFn.FromJSON (moduleFromJSON)
-import PsEl.SExp (featureFileName)
+import PsEl.SExp (Feature (..), featureFileName)
 import PsEl.SExpPrinter (displayFeature)
 import PsEl.Transpile (transpile)
 import RIO
@@ -35,8 +35,8 @@ defaultMain = do
         let coreFnPath = dir </> "corefn.json"
         value <- Aeson.eitherDecodeFileStrict coreFnPath >>= either Sys.die pure
         (_version, module') <- either Sys.die pure $ parseEither moduleFromJSON value
-        let feature = transpile module'
-        let path = elispRoot </> featureFileName feature
+        let feature@Feature{name} = transpile module'
+        let path = elispRoot </> featureFileName name
         writeFileUtf8Builder path (displayFeature feature)
 
 -- let (nix, ModuleInfo usesFFI interpolations) = convert module'

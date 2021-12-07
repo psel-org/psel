@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module PsEl.SExp where
@@ -94,13 +95,17 @@ data DefVar = DefVar
     , definition :: SExp
     }
 
+newtype FeatureName = FeatureName Symbol
+
 -- Feature (Emacs requirable file)
 data Feature = Feature
-    { name :: Symbol
-    , requires :: [Symbol]
+    { name :: FeatureName
+    , requires :: [FeatureName]
+    , requireFFI :: Maybe FeatureName
     , defVars :: [DefVar]
     }
 
-featureFileName :: Feature -> String
-featureFileName Feature{name = UnsafeSymbol s} =
+featureFileName :: FeatureName -> String
+featureFileName (FeatureName (UnsafeSymbol s)) =
     unpack s <> ".el"
+
