@@ -10,7 +10,7 @@ import Language.PureScript (ModuleName (ModuleName))
 import Language.PureScript.CoreFn qualified as P
 import Language.PureScript.CoreFn.FromJSON (moduleFromJSON)
 import PsEl.SExp (featureFileName)
-import PsEl.SExpPrinter (displayFeatureFile)
+import PsEl.SExpPrinter (displayFeature)
 import PsEl.Transpile (transpile)
 import RIO
 import RIO.ByteString.Lazy qualified as TL
@@ -35,9 +35,9 @@ defaultMain = do
         let coreFnPath = dir </> "corefn.json"
         value <- Aeson.eitherDecodeFileStrict coreFnPath >>= either Sys.die pure
         (_version, module') <- either Sys.die pure $ parseEither moduleFromJSON value
-        let file = transpile module'
-        let path = elispRoot </> featureFileName file
-        writeFileUtf8Builder path (displayFeatureFile file)
+        let feature = transpile module'
+        let path = elispRoot </> featureFileName feature
+        writeFileUtf8Builder path (displayFeature feature)
 
 -- let (nix, ModuleInfo usesFFI interpolations) = convert module'
 -- writeFileUtf8Builder (dir </> "default.nix") (renderExpr nix)
@@ -57,13 +57,3 @@ defaultMain = do
 --             , "  " <> intercalate ", " (show <$> toList interpolations)
 --             , "Nix string interpolations are currently not officially supported and may cause unexpected behavior."
 --             ]
-
--- check :: P.Module P.Ann -> IO ()
--- check P.Module{P.moduleName, P.moduleDecls} = do
---     when (moduleName == ModuleName "Main") $ do
---         putStrLn $ show moduleName
---         traverse_ checkDecl moduleDecls
-
--- -- topLevel-bind が Recなことがありえるのか？
--- checkDecl :: P.Bind P.Ann -> IO ()
--- checkDecl b = pPrint $ fmap (const ()) b

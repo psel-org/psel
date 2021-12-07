@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -26,7 +27,7 @@ import RIO.Text.Partial qualified as Partial
 -- -- PureScript Module Info
 -- data PSModuleInfo
 
-transpile :: Module Ann -> FeatureFile
+transpile :: Module Ann -> Feature
 transpile
     Module
         { moduleSourceSpan
@@ -37,9 +38,9 @@ transpile
         , moduleExports
         , moduleForeign
         , moduleDecls
-        } = FeatureFile{feature, requires, defVars}
+        } = Feature{name, requires, defVars}
       where
-        feature = moduleName' moduleName
+        name = moduleName' moduleName
         requires = map (moduleName' . snd) moduleImports
         defVars = mconcat $ map (decl moduleName) moduleDecls
 

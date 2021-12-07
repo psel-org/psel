@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -8,8 +9,8 @@ import PsEl.SExp
 import RIO hiding (bracket)
 import RIO.Text.Partial qualified as T
 
-displayFeatureFile :: FeatureFile -> Utf8Builder
-displayFeatureFile FeatureFile{feature, requires, defVars} =
+displayFeature :: Feature -> Utf8Builder
+displayFeature Feature{name, requires, defVars} =
     mconcat . intersperse "\n" $
         mconcat
             [ [headLine]
@@ -28,7 +29,7 @@ displayFeatureFile FeatureFile{feature, requires, defVars} =
         map displayDefVar defVars
 
     provideLine =
-        displaySExp $ list [symbol "provide", quote (symbol feature)]
+        displaySExp $ list [symbol "provide", quote (symbol name)]
 
 displayDefVar :: DefVar -> Utf8Builder
 displayDefVar DefVar{name, definition} =

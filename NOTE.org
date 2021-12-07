@@ -5,6 +5,42 @@
 emacs を使っているが elisp (というか動的型言語一般)が苦手なため。
 elisper に怒られるのでこっそりやる。
 
+* FFI
+
+2021/12/08
+参考
+https://discourse.purescript.org/t/asking-for-guides-of-making-new-backends/1126
+
+forkする方式(purenix?)、対象言語のFFIを別リポで提供する([[https://github.com/andyarvanitis/purescript-native-go-ffi][purescript-native-go-ffi]])方式があるっぽい。
+後者がいいかな..
+
+core-fn.jsonは [[https://hackage.haskell.org/package/purescript-0.13.8/docs/Language-PureScript-CoreFn-FromJSON.html][moduleFromJSON]] で読み取るのだが、バージョン情報はあれどパッケージが分からん。
+ということはパッケージ毎にFFIファイルを分けたかったが(e.g. purescript-prelude/Data.Eq.el)、
+Data.Eq の core-fn.jsonを読み込んだ際、どのディレクトリを見れば分からない...(go-ffiはどう解決している？)
+アノテーション(Ann)の中に情報入ってたりするのか？
+
+ModulePath が持っていた。例えば Data.Eq の場合、次のような値が入っている。
+(まあ spagoの実装依存のわけだが...)
+: "modulePath":".spago/prelude/master/src/Data/Eq.purs"
+
+その内状況は変わる可能性ありだが..
+https://github.com/purescript/purescript/issues/2437
+https://github.com/purescript/purescript/issues/3493
+
+Data.Bar.ps は Data.Bar.el に変換することにした。
+elisp の命名規約とは外れているが、そもそもPSから変換したコードなんてはみ出しているので、
+逆に意識的にするために名前はelispの命名規約から外すほうがいいかな。
+副作用としてFFIコードをインラインにする必要はなく、例えば Data.Bar.ffi.el とすれば衝突の恐れはなくなる。
+
++~Data/Bar.purs~ が内部で ~foreign~ を使っている場合、+
++~Data/Bar.el~ に書かれたelispを ~ps-data-bar.el~ の下部にインライン展開する。+
++foreign定義が正しく書かれているかどうかの検証は行なわない。+
+
++foreign定義を別ファイル、例えば ~ps-data-bar-foreign.el~ というファイルに分けた場合、+
++~Data/Bar/Foreign.purs~ モジュールが生成する通常 elファイルと衝突しないように+
++通常生成ファイルもsuffix付き、例えば ~ps-data-bar-foreign-default.el~, にする必要が出てくる。+
++インライン展開にすることで問題になることはないはずなのでインライン展開で。+
+
 * 設計
 ** モジュール
 
@@ -30,17 +66,6 @@ foriegnファイルにトップレベルの処理を書くという抜け道が�
 モジュール内トップレベル処理は(loadではなくrequireする限り)初期化処理が一度のみ走ることが保証される。
 モジュールを require する側が必要に応じて呼出しでは複数回実行されてしまう可能性がある。
 あまりに大変な場合であれば設計を変える必要がある。
-
-** FFI
-
-~Data/Bar.purs~ が内部で ~foreign~ を使っている場合、
-~Data/Bar.el~ に書かれたelispを ~ps-data-bar.el~ の下部にインライン展開する。
-foreign定義が正しく書かれているかどうかの検証は行なわない。
-
-foreign定義を別ファイル、例えば ~ps-data-bar-foreign.el~ というファイルに分けた場合、
-~Data/Bar/Foreign.purs~ モジュールが生成する通常 elファイルと衝突しないように
-通常生成ファイルもsuffix付き、例えば ~ps-data-bar-foreign-default.el~, にする必要が出てくる。
-インライン展開にすることで問題になることはないはずなのでインライン展開で。
 
 ** 関数
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -94,12 +95,12 @@ data DefVar = DefVar
     }
 
 -- Feature (Emacs requirable file)
-data FeatureFile = FeatureFile
-    { feature :: Symbol
+data Feature = Feature
+    { name :: Symbol
     , requires :: [Symbol]
     , defVars :: [DefVar]
     }
 
-featureFileName :: FeatureFile -> String
-featureFileName FeatureFile{feature = UnsafeSymbol s} =
+featureFileName :: Feature -> String
+featureFileName Feature{name = UnsafeSymbol s} =
     unpack s <> ".el"
