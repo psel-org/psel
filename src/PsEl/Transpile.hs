@@ -59,7 +59,7 @@ featureName (ModuleName t) = FeatureName $ UnsafeSymbol t
 
 -- PSのモジュール名では _ は多分使わないので大丈夫かな？
 featureFFIName :: ModuleName -> FeatureName
-featureFFIName (ModuleName s) = FeatureName $ UnsafeSymbol $ s <> "._FFI"
+featureFFIName (ModuleName s) = FeatureName $ UnsafeSymbol $ s <> "._FOREIGN_"
 
 -- マクロや組込関数(built-ins, special-formも含む)の名前衝突も値スロットだけ使う分には考える必要はない。
 -- シンタックス上のキーワードではなく特別な関数が関数スロットに設定されている。

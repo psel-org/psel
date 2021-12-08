@@ -26,8 +26,15 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     requireLines =
         map (onFeature "require") requires
 
-    requireFFILine =
-        map (onFeature "require") $ maybeToList requireFFI
+    -- FFIファイルのファイル名と最終的なファイル名が異なるため,
+    -- FFIファイルにはprovideを書かずrequire側で provideするようにしている。
+    -- 逆にFFIファイル内ではprovideを書いてはいけない(チェックするべき)。
+    -- 例えば Data/Eq.el という FFIファイルは Dat.Eq._FOREIGN_.el というファイルにコピーされる。
+    -- provideはfeature内から実行する必要はない。また同featureを複数回provideしても問題はない
+    -- (ater-load-alistにフックが登録されていない限り)。
+    requireFFILine = case requireFFI of
+        Just ffiName -> [onFeature "require" ffiName, onFeature "provide" ffiName]
+        Nothing -> []
 
     defVarLines =
         map displayDefVar defVars
