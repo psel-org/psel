@@ -43,13 +43,17 @@ transpile
         name =
             featureName moduleName
         requires =
-            map (featureName . snd) moduleImports
+            pselFeature : map (featureName . snd) moduleImports
         defVars =
             mconcat $ map (decl moduleName) moduleDecls
         requireFFI =
             if null moduleForeign
                 then Nothing
                 else Just $ featureFFIName moduleName
+
+-- 全ての生成モジュールに必要になるヘルパーライブラリ
+pselFeature :: FeatureName
+pselFeature = FeatureName $ UnsafeSymbol "psel"
 
 -- モジュール名はそのまま Feqatureとする
 -- キャメルケース,ドット区切りはelispの規約に沿っていないが,

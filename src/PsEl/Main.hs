@@ -8,12 +8,13 @@ module PsEl.Main where
 
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (parseEither)
-import Language.PureScript (ModuleName (ModuleName), getModuleName)
+import Language.PureScript (ModuleName (ModuleName))
 import Language.PureScript.CoreFn qualified as P
 import Language.PureScript.CoreFn.FromJSON (moduleFromJSON)
+import PsEl.PselEl (pselEl)
 import PsEl.SExp (Feature (..), featureFileName)
 import PsEl.SExpPrinter (displayFeature, displayString)
-import PsEl.Transpile (transpile)
+import PsEl.Transpile (transpile, pselFeature)
 import RIO
 import RIO.Directory qualified as Dir
 import RIO.FilePath ((</>))
@@ -31,6 +32,7 @@ defaultMain = do
     let elispRoot = workdir </> "output.el"
     whenM (Dir.doesDirectoryExist elispRoot) $ Dir.removeDirectoryRecursive elispRoot
     Dir.createDirectory elispRoot
+    writeFileUtf8 (elispRoot </> featureFileName pselFeature) (pselEl pselFeature)
     moduleDirs <- filter (/= "cache-db.json") <$> Dir.listDirectory moduleRoot
     warngings <- forM moduleDirs $ \rel -> do
         let coreFnPath = moduleRoot </> rel </> "corefn.json"
@@ -63,7 +65,7 @@ handleModule elispRoot module'@P.Module{P.moduleName, P.modulePath} = do
                         { moduleName
                         , modulePath
                         , foreignSourcePath
-                        , foreignFileName = FP.takeFileName foreignTargetPath
+                        , foreignTargetPath
                         }
                 ]
         (False, Nothing) ->
@@ -91,7 +93,6 @@ displayUnneedWarngins warnings =
 
     modules = map dispaly' warnings
 
-    dispaly' :: UnneededFFIFileWarning -> Utf8Builder
     dispaly' UnneededFFIFileWarning{moduleName = ModuleName mn} =
         display mn
 
@@ -107,16 +108,15 @@ displayMissingWarngins warnings =
         [ "!!! WARNING !!!"
         , "These modules uses FFI but missing corresponding FFI file."
         , "If you require these module it will fail try requrieing its FFI file."
-        , "You can write these missing FFI files your self and place it under emacs's load-path."
+        , "You can write these missing FFI files yourself and place it under emacs's load-path."
         ]
 
     modules = map dispaly' warnings
 
-    dispaly' :: MissingFFIFileWarning -> Utf8Builder
-    dispaly' MissingFFIFileWarning{moduleName = ModuleName mn, foreignFileName} =
+    dispaly' MissingFFIFileWarning{moduleName = ModuleName mn, foreignTargetPath} =
         display (justifyLeft 20 ' ' (mn <> ","))
             <> "FFI file: "
-            <> display (pack foreignFileName)
+            <> display (pack (FP.takeFileName foreignTargetPath))
 
 putStderrLn :: Utf8Builder -> IO ()
 putStderrLn ub = hPutBuilder stderr . getUtf8Builder $ ub <> "\n"
@@ -133,5 +133,5 @@ data MissingFFIFileWarning = MissingFFIFileWarning
     { moduleName :: ModuleName
     , modulePath :: FilePath
     , foreignSourcePath :: FilePath
-    , foreignFileName :: FilePath
+    , foreignTargetPath :: FilePath
     }
