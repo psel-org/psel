@@ -14,13 +14,14 @@ import Language.PureScript.CoreFn.FromJSON (moduleFromJSON)
 import PsEl.PselEl (pselEl)
 import PsEl.SExp (Feature (..), featureFileName)
 import PsEl.SExpPrinter (displayFeature, displayString)
-import PsEl.Transpile (transpile, pselFeature)
+import PsEl.Transpile (ffiFeatureSuffix, pselFeature, transpile)
 import RIO
 import RIO.Directory qualified as Dir
 import RIO.FilePath ((</>))
 import RIO.FilePath qualified as FP
-import RIO.List (intersperse)
+import RIO.List (intersperse, sort)
 import RIO.Text (justifyLeft, pack, unpack)
+import RIO.Text qualified as T
 import System.Exit qualified as Sys
 import System.IO (hPutStrLn, putStrLn)
 import Text.Pretty.Simple (pPrint, pShow)
@@ -71,6 +72,21 @@ handleModule elispRoot module'@P.Module{P.moduleName, P.modulePath} = do
         (False, Nothing) ->
             pure []
 
+-- PSコンパイラはpackage-awareではない。そのため当然corefnにはモジュールがどのパッ
+-- ケージのどのバージョンのものかの情報は含まれていない。ただspago使っている場合,
+-- PSのソースコードのパスでパッケージ名は推測できる。
+--
+-- 例えばspagoでpreludeをコンパイルした場合,Data.Eqモジュールは次のmodulePathを持つ。
+--
+-- e.g. "modulePath":".spago/prelude/master/src/Data/Eq.purs"
+--
+guessPackageByModulePath :: FilePath -> Maybe Text
+guessPackageByModulePath path = do
+    path' <- T.stripPrefix ".spago/" (pack path)
+    let pkg = T.takeWhile (/= '/') path'
+    guard $ not (T.null pkg)
+    pure pkg
+
 handleWarnings :: [Warning] -> IO ()
 handleWarnings warnings = do
     let (unneeds, missings) = partitionEithers warnings
@@ -91,9 +107,9 @@ displayUnneedWarngins warnings =
         , "These FFI files are ignored, so no worry, but this could be smell of a bug."
         ]
 
-    modules = map dispaly' warnings
+    modules = map display' warnings
 
-    dispaly' UnneededFFIFileWarning{moduleName = ModuleName mn} =
+    display' UnneededFFIFileWarning{moduleName = ModuleName mn} =
         display mn
 
 displayMissingWarngins :: [MissingFFIFileWarning] -> Utf8Builder
@@ -108,18 +124,32 @@ displayMissingWarngins warnings =
         [ "!!! WARNING !!!"
         , "These modules uses FFI but missing corresponding FFI file."
         , "If you require these module it will fail try requrieing its FFI file."
-        , "You can write these missing FFI files yourself and place it under emacs's load-path."
+        , "You can write missing FFI files yourself and place it under emacs's load-path."
+        , "For example, for module `Data.Eq`, FFI file should be `Data.Eq" <> display ffiFeatureSuffix <> ".el`"
         ]
 
-    modules = map dispaly' warnings
+    modules =
+        map display $ sort $ map displayText' warnings
 
-    dispaly' MissingFFIFileWarning{moduleName = ModuleName mn, foreignTargetPath} =
-        display (justifyLeft 20 ' ' (mn <> ","))
-            <> "FFI file: "
-            <> display (pack (FP.takeFileName foreignTargetPath))
+    displayText' MissingFFIFileWarning{moduleName = ModuleName mn, modulePath, foreignTargetPath} =
+        displayColumns
+            24
+            [ "Package: " <> fromMaybe "--" (guessPackageByModulePath modulePath)
+            , "Module: " <> mn
+            ]
 
 putStderrLn :: Utf8Builder -> IO ()
 putStderrLn ub = hPutBuilder stderr . getUtf8Builder $ ub <> "\n"
+
+displayColumns :: Int -> [Text] -> Text
+displayColumns _ [] = mempty
+displayColumns width vs =
+    mconcat $ mapBut1 (justifyLeft width ' ' . (<> ",")) vs
+  where
+    mapBut1 :: (a -> a) -> [a] -> [a]
+    mapBut1 f [] = []
+    mapBut1 f [x] = [x]
+    mapBut1 f (x : xs) = f x : mapBut1 f xs
 
 type Warning =
     Either UnneededFFIFileWarning MissingFFIFileWarning
