@@ -33,7 +33,7 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     -- provideはfeature内から実行する必要はない。また同featureを複数回provideしても問題はない
     -- (ater-load-alistにフックが登録されていない限り)。
     requireFFILine = case requireFFI of
-        Just ffiName -> [onFeature "require" ffiName, onFeature "provide" ffiName]
+        Just (ffiName, _) -> [onFeature "require" ffiName, onFeature "provide" ffiName]
         Nothing -> []
 
     defVarLines =

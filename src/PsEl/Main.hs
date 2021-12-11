@@ -11,8 +11,9 @@ import Data.Aeson.Types (parseEither)
 import Language.PureScript (ModuleName (ModuleName))
 import Language.PureScript.CoreFn qualified as P
 import Language.PureScript.CoreFn.FromJSON (moduleFromJSON)
+import PsEl.ForeignTemplate (foreignTemplate)
 import PsEl.PselEl (pselEl)
-import PsEl.SExp (Feature (..), featureFileName)
+import PsEl.SExp (Feature (..), Symbol, featureFileName)
 import PsEl.SExpPrinter (displayFeature, displayString)
 import PsEl.Transpile (ffiFeatureSuffix, pselFeature, transpile)
 import RIO
@@ -26,8 +27,8 @@ import System.Exit qualified as Sys
 import System.IO (hPutStrLn, putStrLn)
 import Text.Pretty.Simple (pPrint, pShow)
 
-defaultMain :: IO ()
-defaultMain = do
+defaultMain :: Config -> IO ()
+defaultMain Config{generateMissingForeignFiles} = do
     let workdir = "."
     let moduleRoot = workdir </> "output"
     let elispRoot = workdir </> "output.el"
@@ -35,14 +36,31 @@ defaultMain = do
     Dir.createDirectory elispRoot
     writeFileUtf8 (elispRoot </> featureFileName pselFeature) (pselEl pselFeature)
     moduleDirs <- filter (/= "cache-db.json") <$> Dir.listDirectory moduleRoot
-    warngings <- forM moduleDirs $ \rel -> do
+    warngings' <- forM moduleDirs $ \rel -> do
         let coreFnPath = moduleRoot </> rel </> "corefn.json"
         value <- Aeson.eitherDecodeFileStrict coreFnPath >>= either Sys.die pure
         (_version, module') <- either Sys.die pure $ parseEither moduleFromJSON value
         handleModule elispRoot module'
-    handleWarnings $ mconcat warngings
+    let warnings = mconcat warngings'
+    printWarnings warnings
+    when generateMissingForeignFiles
+        . doGenerateMissingForeignFiles
+        . snd
+        $ partitionEithers warnings
 
--- (1) ForeignFileが(provide)を行なっている場合警告を出す必要があるかも。
+data Config = Config
+    { generateMissingForeignFiles :: Bool
+    }
+
+defaultConfig :: Config
+defaultConfig =
+    Config
+        { generateMissingForeignFiles = False
+        }
+
+-- (1)
+-- ForeignFileが(provide)を行なっている場合警告を出す必要があるかも。
+-- また必要なFFI定義を
 handleModule :: FilePath -> P.Module P.Ann -> IO [Warning]
 handleModule elispRoot module'@P.Module{P.moduleName, P.modulePath} = do
     let feature = transpile module'
@@ -52,21 +70,20 @@ handleModule elispRoot module'@P.Module{P.moduleName, P.modulePath} = do
     writeFileUtf8Builder targetPath (displayFeature feature)
     hasForeignSource <- Dir.doesFileExist foreignSourcePath
     case (hasForeignSource, requireFFI) of
-        (True, Just ffiName) -> do
+        (True, Just (ffiName, _foreignSymbols)) -> do
             let foreignTargetPath = elispRoot </> featureFileName ffiName
             Dir.copyFile foreignSourcePath foreignTargetPath -- (1)
             pure []
         (True, Nothing) ->
             pure [Left UnneededFFIFileWarning{moduleName, modulePath}]
-        (False, Just ffiName) -> do
-            let foreignTargetPath = elispRoot </> featureFileName ffiName
+        (False, Just (ffiName, foreignSymbols)) -> do
             pure
                 [ Right
                     MissingFFIFileWarning
                         { moduleName
                         , modulePath
                         , foreignSourcePath
-                        , foreignTargetPath
+                        , foreignSymbols
                         }
                 ]
         (False, Nothing) ->
@@ -87,8 +104,13 @@ guessPackageByModulePath path = do
     guard $ not (T.null pkg)
     pure pkg
 
-handleWarnings :: [Warning] -> IO ()
-handleWarnings warnings = do
+-- 依存ではなく現在のパッケージの
+guessIsCurrentPackageByModulePath :: FilePath -> Bool
+guessIsCurrentPackageByModulePath path =
+    T.isPrefixOf "src/" (pack path)
+
+printWarnings :: [Warning] -> IO ()
+printWarnings warnings = do
     let (unneeds, missings) = partitionEithers warnings
     when (not (null unneeds)) $ putStderrLn $ displayUnneedWarngins unneeds
     when (not (null missings)) $ putStderrLn $ displayMissingWarngins missings
@@ -131,15 +153,37 @@ displayMissingWarngins warnings =
     modules =
         map display $ sort $ map displayText' warnings
 
-    displayText' MissingFFIFileWarning{moduleName = ModuleName mn, modulePath, foreignTargetPath} =
+    displayText' MissingFFIFileWarning{moduleName = ModuleName mn, modulePath} =
         displayColumns
             24
             [ "Package: " <> fromMaybe "--" (guessPackageByModulePath modulePath)
             , "Module: " <> mn
             ]
 
+--
+doGenerateMissingForeignFiles :: [MissingFFIFileWarning] -> IO ()
+doGenerateMissingForeignFiles ws =
+    go $
+        filter
+            ( \MissingFFIFileWarning{modulePath} ->
+                guessIsCurrentPackageByModulePath modulePath
+            )
+            ws
+  where
+    go [] =
+        putStdoutLn "No missing foreign file."
+    go ws = do
+        putStdoutLn "Generating missing foreign files.\n"
+        forM_ ws $ \MissingFFIFileWarning{foreignSourcePath, foreignSymbols} -> do
+            let template = foreignTemplate foreignSymbols
+            writeFileUtf8Builder foreignSourcePath template
+            putStdoutLn $ display (pack foreignSourcePath)
+
 putStderrLn :: Utf8Builder -> IO ()
 putStderrLn ub = hPutBuilder stderr . getUtf8Builder $ ub <> "\n"
+
+putStdoutLn :: Utf8Builder -> IO ()
+putStdoutLn ub = hPutBuilder stdout . getUtf8Builder $ ub <> "\n"
 
 displayColumns :: Int -> [Text] -> Text
 displayColumns _ [] = mempty
@@ -163,5 +207,5 @@ data MissingFFIFileWarning = MissingFFIFileWarning
     { moduleName :: ModuleName
     , modulePath :: FilePath
     , foreignSourcePath :: FilePath
-    , foreignTargetPath :: FilePath
+    , foreignSymbols :: [Symbol]
     }

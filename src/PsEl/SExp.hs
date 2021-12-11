@@ -101,11 +101,10 @@ newtype FeatureName = FeatureName Symbol
 data Feature = Feature
     { name :: FeatureName
     , requires :: [FeatureName]
-    , requireFFI :: Maybe FeatureName
+    , requireFFI :: Maybe (FeatureName, [Symbol])
     , defVars :: [DefVar]
     }
 
 featureFileName :: FeatureName -> String
 featureFileName (FeatureName (UnsafeSymbol s)) =
     unpack s <> ".el"
-

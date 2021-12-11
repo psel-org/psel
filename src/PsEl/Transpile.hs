@@ -49,7 +49,7 @@ transpile
         requireFFI =
             if null moduleForeign
                 then Nothing
-                else Just $ ffiFeatureName moduleName
+                else Just (ffiFeatureName moduleName, map (globalVar moduleName) moduleForeign)
 
 -- 全ての生成モジュールに必要になるヘルパーライブラリ
 pselFeature :: FeatureName
@@ -121,6 +121,7 @@ expr (Var _ qident) = var qident
 expr (Case _ es cas) = case' (map expr es) cas
 expr (Let _ binds e) = let' binds (expr e)
 
+-- nil 及び t は特別な定数でありは束縛やsetqはできない。
 literal :: Literal (Expr a) -> SExp
 literal (NumericLiteral (Left i)) = integer i
 literal (NumericLiteral (Right d)) = double d

@@ -25,6 +25,7 @@ extra-source-files:
 
 library
   exposed-modules:
+    PsEl.ForeignTemplate
     PsEl.Main
     PsEl.PselEl
     PsEl.SExp
