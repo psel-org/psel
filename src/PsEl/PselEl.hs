@@ -27,5 +27,25 @@ pselEl (FeatureName sym) =
         (t
          (cons (car alist) (psel/alist-set field val (cdr alist))))))
 
+;; Curry helpers
+
+(defun psel/curry2 (fsym)
+  (lambda (a)
+    (lambda (b)
+      (funcall fsym a b))))
+
+(defun psel/curry3 (fsym)
+  (lambda (a)
+    (lambda (b)
+      (lambda (c)
+        (funcall fsym a b c)))))
+
+(defun psel/curry3 (fsym)
+  (lambda (a)
+    (lambda (b)
+      (lambda (c)
+        (lambda (d)
+          (funcall fsym a b c d))))))
+
 (provide '$feature)
 |]
