@@ -14,7 +14,6 @@ foreignTemplate symbols =
         mconcat
             [ headLines
             , defVarLines
-            , footerLines
             ]
   where
     headLines =
@@ -30,8 +29,3 @@ foreignTemplate symbols =
     -- わざと束縛されていないシンボルを使うことでrequire時に実装漏れで例外投げるように
     placehold =
         symbol "foreign-not-implemeneted"
-
-    footerLines =
-        [ ";; You don't need to provide feature."
-        , ";; This file will be copied with a diffirent file name."
-        ]

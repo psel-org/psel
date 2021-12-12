@@ -20,8 +20,11 @@ pselEl (FeatureName sym) =
 
 ;; Exception
 
-(defun psel/throw-unrecoverable-error (&rest args)
-  (throw (cons 'psel/unrecoverable-error args) nil))
+(defun psel/throw-unrecoverable-error ()
+  (throw 'psel/unrecoverable-error nil))
+
+(defun psel/throw-assert-error (msg)
+  (throw (cons 'psel/assert-error msg) nil))
 
 ;; Alist
 

@@ -178,6 +178,9 @@ doGenerateMissingForeignFiles ws =
             let template = foreignTemplate foreignSymbols
             writeFileUtf8Builder foreignSourcePath template
             putStdoutLn $ display (pack foreignSourcePath)
+        putStdoutLn "\nNote: You don't need to provide feature(e.g. (provide 'Data.Eq)) in a foreign file."
+        putStdoutLn "Foreign files will be copied with a diffirent file name."
+
 
 putStderrLn :: Utf8Builder -> IO ()
 putStderrLn ub = hPutBuilder stderr . getUtf8Builder $ ub <> "\n"
