@@ -16,36 +16,58 @@ pselEl :: FeatureName -> Text
 pselEl (FeatureName sym) =
     let feature = utf8BuilderToText $ displaySymbol sym
      in [trimming|
-;; psel -*- lexical-binding: t; -*-
+;; psel.el -*- lexical-binding: t; -*-
+
+;; Exception
+
+(defun psel/throw-unrecoverable-error (&rest args)
+  (throw (cons 'psel/unrecoverable-error args) nil))
+
+;; Alist
 
 (defun psel/alist-set (field val alist)
   "Update the first cons with car eq to field in a immutable way."
   (cond ((null alist)
-         (throw 'ps nil))
+         (psel/throw-unrecoverable-error))
         ((eq (caar alist) field)
          (cons (cons field val) (cdr alist)))
         (t
          (cons (car alist) (psel/alist-set field val (cdr alist))))))
 
-;; Curry helpers
+(defun psel/alist-delete (field alist)
+  "Delete the first cons with car eq to field in a immutable way."
+  (cond ((null alist)
+         (psel/throw-unrecoverable-error))
+        ((eq (caar alist) field)
+         (cdr alist))
+        (t
+         (cons (car alist) (psel/alist-delete field (cdr alist))))))
+
+;; Currying
 
 (defun psel/curry2 (fsym)
   (lambda (a)
     (lambda (b)
-      (funcall fsym a b))))
+      (funcall (symbol-function fsym) a b))))
 
 (defun psel/curry3 (fsym)
   (lambda (a)
     (lambda (b)
       (lambda (c)
-        (funcall fsym a b c)))))
+        (funcall (symbol-function fsym) a b c)))))
 
 (defun psel/curry3 (fsym)
   (lambda (a)
     (lambda (b)
       (lambda (c)
         (lambda (d)
-          (funcall fsym a b c d))))))
+          (funcall (symbol-function fsym) a b c d))))))
+
+
+;; Funcall
+
+(defun psel/funcall2 (f a b)
+  (funcall (funcall f a) b))
 
 (provide '$feature)
 |]

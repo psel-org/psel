@@ -32,5 +32,6 @@ foreignTemplate symbols =
         symbol "foreign-not-implemeneted"
 
     footerLines =
-        [ ";; You don't need to provide feature. This file will copied with a diffirent file name."
+        [ ";; You don't need to provide feature."
+        , ";; This file will be copied with a diffirent file name."
         ]
