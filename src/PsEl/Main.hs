@@ -107,7 +107,9 @@ guessPackageByModulePath path = do
 -- 依存ではなく現在のパッケージの
 guessIsCurrentPackageByModulePath :: FilePath -> Bool
 guessIsCurrentPackageByModulePath path =
-    T.isPrefixOf "src/" (pack path)
+    let path' = pack path
+    in T.isPrefixOf "src/" path' || T.isPrefixOf "test/" path'
+
 
 printWarnings :: [Warning] -> IO ()
 printWarnings warnings = do
@@ -146,8 +148,6 @@ displayMissingWarngins warnings =
         [ "!!! WARNING !!!"
         , "These modules uses FFI but missing corresponding FFI file."
         , "If you require these module it will fail try requrieing its FFI file."
-        , "You can write missing FFI files yourself and place it under emacs's load-path."
-        , "For example, for module `Data.Eq`, FFI file should be `Data.Eq" <> display ffiFeatureSuffix <> ".el`"
         ]
 
     modules =
