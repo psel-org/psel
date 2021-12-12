@@ -46,31 +46,5 @@ pselEl (FeatureName sym) =
         (t
          (cons (car alist) (psel/alist-delete field (cdr alist))))))
 
-;; Currying
-
-(defun psel/curry2 (fsym)
-  (lambda (a)
-    (lambda (b)
-      (funcall (symbol-function fsym) a b))))
-
-(defun psel/curry3 (fsym)
-  (lambda (a)
-    (lambda (b)
-      (lambda (c)
-        (funcall (symbol-function fsym) a b c)))))
-
-(defun psel/curry3 (fsym)
-  (lambda (a)
-    (lambda (b)
-      (lambda (c)
-        (lambda (d)
-          (funcall (symbol-function fsym) a b c d))))))
-
-
-;; Funcall
-
-(defun psel/funcall2 (f a b)
-  (funcall (funcall f a) b))
-
 (provide '$feature)
 |]
