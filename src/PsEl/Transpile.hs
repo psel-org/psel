@@ -110,7 +110,7 @@ _identToText UnusedIdent = error "impossible"
 
 -- top-level binding で Rec な binding はありえるが(相互再帰の場合),
 -- 定義順は関係ないので flatten すればいいだけ。
-decl :: ModuleName -> Bind a -> [DefVar]
+decl :: ModuleName -> Bind Ann -> [DefVar]
 decl mn bind = map (uncurry decl') binds
   where
     decl' ident e =
@@ -124,7 +124,7 @@ decl mn bind = map (uncurry decl') binds
             Rec bs -> map (over _1 snd) bs
 
 -- | Expr
-expr :: Expr a -> SExp
+expr :: Expr Ann -> SExp
 expr (Literal _ lit) = literal lit
 expr (Constructor _ _tname cname ids) = constructor cname ids
 expr (Accessor _ ps e) = objectAccess ps (expr e)
@@ -136,7 +136,7 @@ expr (Case _ es cas) = case' (map expr es) cas
 expr (Let _ binds e) = let' binds (expr e)
 
 -- nil 及び t は特別な定数でありは束縛やsetqはできない。
-literal :: Literal (Expr a) -> SExp
+literal :: Literal (Expr Ann) -> SExp
 literal (NumericLiteral (Left i)) = integer i
 literal (NumericLiteral (Right d)) = double d
 literal (StringLiteral ps) = string $ psstring ps
@@ -147,9 +147,10 @@ literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 
 -- 型チェックの都合上 Prim.undefinedという未定義の参照が入ることがある。
 -- (実装に問題がなければ)参照されることはないので適当な未定義の参照に置き換える。
+-- -> 違うっぽい。参照はされるが使われることはない,かな。なので nil に。
 var :: Qualified Ident -> SExp
 var v@(Qualified mn id)
-    | v == primUndefined = symbol "ps-prim-undefined"
+    | v == primUndefined = symbol "nil"
     | otherwise = symbol (maybe localVar globalVar mn id)
   where
     primUndefined = mkQualified (Ident C.undefined) C.Prim
@@ -159,7 +160,7 @@ var v@(Qualified mn id)
 -- 全部 letrec で束縛してしまうのが多分正解かな？
 -- ただ殆どのケースで let* (頑張れば let)で十分なのに letrec は微妙か？
 -- NonRec のみなら let*,一つでも Rec があれば letrec でいいかな。
-let' :: [Bind a] -> SExp -> SExp
+let' :: [Bind Ann] -> SExp -> SExp
 let' binds body = list [letS, list bindS, body]
   where
     ext = \case
@@ -180,7 +181,7 @@ let' binds body = list [letS, list bindS, body]
 -- 対象がリストなのはカンマ区切りで複数対象を指定できるので(e.g. case a, b of)
 -- 各CaseAlternativeは同じ数だけのbinderが必要。
 -- 複数指定の場合はリストに包んでpcaseに適用させる。(e.g. (pcase (list a b) ..))
-case' :: [SExp] -> [CaseAlternative a] -> SExp
+case' :: [SExp] -> [CaseAlternative Ann] -> SExp
 case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
   where
     target = case ss of
@@ -188,7 +189,7 @@ case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
         [s] -> s
         ss -> list (symbol "list" : ss)
 
-    caseAlt :: CaseAlternative a -> SExp
+    caseAlt :: CaseAlternative Ann -> SExp
     caseAlt (CaseAlternative bs e) = list [binders bs, exec e]
 
     -- binderが複数ある場合は `(,a ,b) のようにリストでまとめる
@@ -196,17 +197,22 @@ case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
     binders [b] = binder b
     binders bs = backquote $ list $ map (comma . binder) bs
 
-    binder :: Binder a -> SExp
+    -- newtypeのマッチングの場合はConstructorBindersが呼ばれる。
+    -- 当然newtypeなので下の値がそのまま入っているサブbinderは一つのはず。
+    -- Annのメタ情報を見る必要がある。
+    binder :: Binder Ann -> SExp
     binder (NullBinder _) = symbol "_"
     binder (LiteralBinder _ lit) = literalBinder lit
     binder (VarBinder _ id) = symbol $ localVar id
-    binder (ConstructorBinder _ _qual (Qualified _ cname) bs) = constructorBinder cname (map binder bs)
+    binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ [b]) = binder b
+    binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ _bs) = error "Unexpected binding"
+    binder (ConstructorBinder _ _ (Qualified _ cname) bs) = constructorBinder cname (map binder bs)
     binder (NamedBinder _ id b) = list [symbol "and", symbol (localVar id), binder b]
 
     -- boolean binder と object binder がやっかい。
     -- boolean binder だからといって単に t, nil というシンボル使っても意味がない
     -- (pred ..) を使って nil か t(nil以外)を判別する必要がある。
-    literalBinder :: Literal (Binder a) -> SExp
+    literalBinder :: Literal (Binder Ann) -> SExp
     literalBinder (NumericLiteral (Left i)) = integer i
     literalBinder (NumericLiteral (Right d)) = double d
     literalBinder (StringLiteral ps) = string $ psstring ps
@@ -218,7 +224,7 @@ case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
     -- ガード節がある場合はcondを使う
     -- type Guard a = Expr a
     -- A guard is just a boolean-valued expression that appears alongside a set of binders
-    exec :: Either [(Guard a, Expr a)] (Expr a) -> SExp
+    exec :: Either [(Guard Ann, Expr Ann)] (Expr Ann) -> SExp
     exec (Left xs) = list $ symbol "cond" : map (\(g, e) -> list [expr g, expr e]) xs
     exec (Right e) = expr e
 
