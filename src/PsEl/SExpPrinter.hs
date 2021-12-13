@@ -15,7 +15,7 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
         mconcat
             [ [headLine]
             , requireLines
-            , requireFFILine
+            , loadFFILine
             , defVarLines
             , [provideLine]
             ]
@@ -26,14 +26,20 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     requireLines =
         map (onFeature "require") requires
 
-    -- FFIファイルのファイル名と最終的なファイル名が異なるため,
-    -- FFIファイルにはprovideを書かずrequire側で provideするようにしている。
-    -- 逆にFFIファイル内ではprovideを書いてはいけない(チェックするべき)。
-    -- 例えば Data/Eq.el という FFIファイルは Dat.Eq._FOREIGN_.el というファイルにコピーされる。
-    -- provideはfeature内から実行する必要はない。また同featureを複数回provideしても問題はない
-    -- (ater-load-alistにフックが登録されていない限り)。
-    requireFFILine = case requireFFI of
-        Just (ffiName, _) -> [onFeature "require" ffiName, onFeature "provide" ffiName]
+    -- FFIファイルのファイル名と最終的なファイル名が異なるため,FFIファイルには
+    -- provide は書かず, load する。FFIファイルは対応するelモジュールファイルか
+    -- らしかloadされず,elモジュールファイルのほうはrequireされるので複数回load
+    -- されることはない。
+    --
+    -- require側で provideするよることも考えたが, requireされた側にprovideがなかっ
+    -- た場合emacsが例外を投げる。
+    --
+    -- 逆にFFIファイル内ではprovideを書いてはいけない(チェックするべき)。例えば
+    -- Data/Eq.el という FFIファイルは Dat.Eq._FOREIGN_.el というファイルにコピー
+    -- される。
+    loadFFILine = case requireFFI of
+        Just (FeatureName (UnsafeSymbol name), _) ->
+            [displaySExp $ list [symbol "load", string name]]
         Nothing -> []
 
     defVarLines =
