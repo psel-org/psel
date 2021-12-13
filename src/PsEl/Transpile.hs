@@ -12,9 +12,10 @@ module PsEl.Transpile where
 
 import Language.PureScript (Ident (..), ModuleName (ModuleName), ProperNameType (ConstructorName))
 import Language.PureScript qualified as P hiding (ProperName)
+import Language.PureScript.Constants.Prim qualified as C
 import Language.PureScript.CoreFn
 import Language.PureScript.Errors (SourceSpan)
-import Language.PureScript.Names (ProperName (runProperName), Qualified (Qualified))
+import Language.PureScript.Names (ProperName (runProperName), Qualified (Qualified), mkQualified)
 import Language.PureScript.PSString (PSString (toUTF16CodeUnits))
 import Language.PureScript.PSString qualified as PS
 import PsEl.SExp
@@ -22,10 +23,8 @@ import RIO
 import RIO.Lens
 import RIO.NonEmpty qualified as NonEmpty
 import RIO.Set qualified as Set
+import RIO.Text qualified as T
 import RIO.Text.Partial qualified as Partial
-
--- -- PureScript Module Info
--- data PSModuleInfo
 
 transpile :: Module Ann -> Feature
 transpile
@@ -42,14 +41,25 @@ transpile
       where
         name =
             featureName moduleName
+
+        -- 理由は分からないが, moduleImportsには自モジュールも含まれている。
+        -- それをrequireしてしまうと再帰ruquireのエラーになるため除外する。
         requires =
-            pselFeature : map (featureName . snd) moduleImports
+            pselFeature : map featureName (filter (not . ignoreModule) (map snd moduleImports))
+
+        ignoreModule mn =
+            mn == moduleName || isPrimModule mn
+
         defVars =
             mconcat $ map (decl moduleName) moduleDecls
+
         requireFFI =
             if null moduleForeign
                 then Nothing
                 else Just (ffiFeatureName moduleName, map (globalVar moduleName) moduleForeign)
+
+        isPrimModule mn@(ModuleName t) =
+            mn == C.Prim || T.isPrefixOf "Prim." t
 
 -- 全ての生成モジュールに必要になるヘルパーライブラリ
 pselFeature :: FeatureName
@@ -131,8 +141,14 @@ literal (BooleanLiteral b) = bool (symbol "nil") (symbol "t") b
 literal (ArrayLiteral exs) = vector $ map expr exs
 literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 
+-- 型チェックの都合上 Prim.undefinedという未定義の参照が入ることがある。
+-- (実装に問題がなければ)参照されることはないので適当な未定義の参照に置き換える。
 var :: Qualified Ident -> SExp
-var (Qualified mn id) = symbol (maybe localVar globalVar mn id)
+var v@(Qualified mn id)
+    | v == primUndefined = symbol "ps-prim-undefined"
+    | otherwise = symbol (maybe localVar globalVar mn id)
+  where
+    primUndefined = mkQualified (Ident C.undefined) C.Prim
 
 -- Rec(相互参照と自己参照など) と NonRec があるので注意が必要。
 -- PSのletは順序関係なし(順序によってshadowingは変化しない)
