@@ -246,7 +246,7 @@ constructor cname ids =
 constructorBinder :: ProperName 'ConstructorName -> [SExp] -> SExp
 constructorBinder cname binds =
     backquote
-        . list
+        . vector
         $ symbol (constructorTag cname) : map comma binds
 
 constructorTag :: ProperName 'ConstructorName -> Symbol
