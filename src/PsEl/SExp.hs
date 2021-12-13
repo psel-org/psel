@@ -36,6 +36,7 @@ data SExpF e
       Comma e
     deriving (Functor, Foldable, Traversable)
 
+-- Unsafe prefixは任意のテキストが妥当なelispシンボルにならないことを示している。
 newtype Symbol = UnsafeSymbol Text
     deriving (Eq, Ord, IsString)
 

@@ -63,20 +63,27 @@ transpile
 
 -- 全ての生成モジュールに必要になるヘルパーライブラリ
 pselFeature :: FeatureName
-pselFeature = FeatureName $ UnsafeSymbol "psel"
+pselFeature = FeatureName "psel"
 
 -- モジュール名はそのまま Feqatureとする
 -- キャメルケース,ドット区切りはelispの規約に沿っていないが,
 -- PSからの生成ファイルということ
 featureName :: ModuleName -> FeatureName
-featureName (ModuleName t) = FeatureName $ UnsafeSymbol t
+featureName (ModuleName t) = FeatureName $ mkSymbol t
 
 -- PSのモジュール名では _ は多分使わないので大丈夫かな？
 ffiFeatureName :: ModuleName -> FeatureName
-ffiFeatureName (ModuleName s) = FeatureName $ UnsafeSymbol $ s <> ffiFeatureSuffix
+ffiFeatureName (ModuleName s) = FeatureName $ mkSymbol $ s <> ffiFeatureSuffix
 
 ffiFeatureSuffix :: Text
 ffiFeatureSuffix = "._FOREIGN_"
+
+-- PSでは ' を付けことが多いが elisp では許されていない。$ は OK。
+-- ' は ~ に変換する。元々の ~ は ~~ に(ただPSではあまり ~ を使うことはないが..)変換。
+-- replaceの順序は重要。定数シンボル以外は必ずこの関数を通りてSymbolを作成すること。
+mkSymbol :: Text -> Symbol
+mkSymbol t =
+    UnsafeSymbol . Partial.replace "'" "~" $ Partial.replace "~" "~~" t
 
 -- マクロや組込関数(built-ins, special-formも含む)の名前衝突も値スロットだけ使う分には考える必要はない。
 -- シンタックス上のキーワードではなく特別な関数が関数スロットに設定されている。
@@ -87,18 +94,15 @@ ffiFeatureSuffix = "._FOREIGN_"
 --      (+ defun let)) ;; => 3
 --
 localVar :: Ident -> Symbol
-localVar = UnsafeSymbol . _identToText
+localVar = mkSymbol . _identToText
 
 -- グローバル変数の衝突に関しては,PSモジュールのprefix(e.g. Foo.Bar.foo)を使うので衝突は基本起こらない。
 globalVar :: ModuleName -> Ident -> Symbol
 globalVar (ModuleName mn) ident =
-    UnsafeSymbol $ mn <> "." <> _identToText ident
+    mkSymbol $ mn <> "." <> _identToText ident
 
--- PSでは ' を付けことが多いが elisp では許されていない。$ は OK。
--- ' は ^ に変換する。元々の ^ は ^^ に(ただPSではあまり ^ を使うことはないが..)変換。
--- replaceの順序は重要。
 _identToText :: Ident -> Text
-_identToText (Ident t) = Partial.replace "'" "^" $ Partial.replace "^" "^^" t
+_identToText (Ident t) = t
 _identToText (GenIdent mvar i) = fromMaybe "__instance" mvar <> textDisplay i
 _identToText UnusedIdent = error "impossible"
 
@@ -246,7 +250,7 @@ constructorBinder cname binds =
         $ symbol (constructorTag cname) : map comma binds
 
 constructorTag :: ProperName 'ConstructorName -> Symbol
-constructorTag = UnsafeSymbol . runProperName
+constructorTag = mkSymbol . runProperName
 
 -- | Object
 
@@ -269,7 +273,7 @@ objectLiteralBinder = \case
         list
             [ symbol "app"
             , lambda1
-                (UnsafeSymbol "v")
+                (mkSymbol "v")
                 [ list
                     [ symbol "alist-get"
                     , quote (symbol field)
@@ -317,7 +321,7 @@ objectUpdate updates obj = foldl' alistSet obj updates
 
 -- PSのフィールド名をそのままSymbolにして使う
 objectField :: PSString -> Symbol
-objectField = UnsafeSymbol . psstring
+objectField = mkSymbol . psstring
 
 -- | PSString
 
