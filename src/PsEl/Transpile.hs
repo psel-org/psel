@@ -147,10 +147,10 @@ literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 
 -- 型チェックの都合上 Prim.undefinedという未定義の参照が入ることがある。
 -- (実装に問題がなければ)参照されることはないので適当な未定義の参照に置き換える。
--- -> 違うっぽい。参照はされるが使われることはない,かな。なので nil に。
+-- -> 違うっぽい。参照はされるが使われることはない,かな。なので 'ps-prim-undefined に。
 var :: Qualified Ident -> SExp
 var v@(Qualified mn id)
-    | v == primUndefined = symbol "nil"
+    | v == primUndefined = quote $ symbol "ps-prim-undefined"
     | otherwise = symbol (maybe localVar globalVar mn id)
   where
     primUndefined = mkQualified (Ident C.undefined) C.Prim
@@ -191,6 +191,15 @@ case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
 
     caseAlt :: CaseAlternative Ann -> SExp
     caseAlt (CaseAlternative bs e) = list [binders bs, exec e]
+
+    -- PSは不完全マッチングでもコンパイルが通る。
+    -- 全部の場合ではないが,一番最後にマッチング例外を投げるcaseが必要。
+    -- 取り敢えずは全ての場合に付けるが,生成コードが肥大化するので必要な場合のにみ付けたいところ。
+    -- もしくはpcaseマクロをラップしたpsel.elマクロを定義して使うか。
+    --
+    -- 不要な場合,メチャ pcase が怒る(Redundant pcase pattern: _警告)ので外す
+    caseSentinel =
+        list [symbol "_", list [symbol "throw", quote (symbol "ps-matching-error"), symbol "nil"]]
 
     -- binderが複数ある場合は `(,a ,b) のようにリストでまとめる
     binders [] = error "Empty binder"
