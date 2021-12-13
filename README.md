@@ -1,5 +1,7 @@
 # psel: Elisp backend for PureScript
 
+WIP
+
 ## Why
 
 For those who want to extend Emacs with PureScript instead of Elisp.
@@ -18,7 +20,7 @@ String | String
 Array | Vector
 Char | Integer(elisp doen't have char type)
 Boolean | True -> t, False -> nil (elisp doesn't have boolean type)
-Records | alist (e.g. `(('foo . 1) ('bar . "a")`)
+Records | alist (e.g. `(('foo . 1) ('bar . "a"))`)
 Unit | nil (not implemented yet)
 Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. (e.g. `Just 42` -> `['Just 42]`)
 
@@ -33,4 +35,4 @@ Data types | Vector with constructor tag symbol in first slot and arguments in t
 
 ## References
 
-Learned how to write a CoreFn-type PureScript backend from [purenix](https://github.com/purenix-org/purenix).
+Learned how to write a CoreFn-type PureScript backend from [purenix](https://github.com/purenix-org/purenix) and [purerl](https://github.com/purerl/purerl).
