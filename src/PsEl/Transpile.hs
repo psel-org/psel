@@ -319,18 +319,11 @@ objectAccess fname obj =
 
 -- 標準で非破壊的にalistを設定するための関数が提供されていない。
 -- (copy-alist + setf + alist-get で出来なくはないがややこい)。
--- 下記関数を psel.el から提供する。
---
--- (defun psel/alist-set (field val alist)
---   "Update the first cons with car eq to field in a immutable way."
---   (cond ((null alist)
---          (throw 'ps nil))
---         ((eq (caar alist) field)
---          (cons (cons field val) (cdr alist)))
---         (t
---          (cons (car alist) (psel/alist-set field val (cdr alist))))))
---
+-- psel.el からimmutableにalist を更新するpset/alist-set関数を提供する。
 -- e.g. (psel/alist-set 'foo 1 (psel/alist-set 'bar "a" obj))
+--
+-- またレコードの更新構文を使ったとしても必ずしもObjectUpdateにコンパイルされるわけではない。
+-- (恐らく)レコードが小さければレコードリテラル+フィールド参照に置き換えられる。
 objectUpdate :: [(PSString, SExp)] -> SExp -> SExp
 objectUpdate updates obj = foldl' alistSet obj updates
   where

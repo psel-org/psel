@@ -46,5 +46,11 @@ pselEl (FeatureName sym) =
         (t
          (cons (car alist) (psel/alist-delete field (cdr alist))))))
 
+(defun psel/alist-equal (a b)
+  "Alist equality. Key order doesn't matter."
+  (let ((keys (mapcar 'car a)))
+    (and (eq (length keys) (length b))
+         (equal a (mapcar (lambda (key) (assq key b)) keys)))))
+
 (provide '$feature)
 |]
