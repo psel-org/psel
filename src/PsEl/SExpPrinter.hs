@@ -29,7 +29,8 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     -- FFIファイルのファイル名と最終的なファイル名が異なるため,FFIファイルには
     -- provide は書かず, load する。FFIファイルは対応するelモジュールファイルか
     -- らしかloadされず,elモジュールファイルのほうはrequireされるので複数回load
-    -- されることはない。
+    -- されることはない。loadはロード時にメッセージを出すが第3引数にtを渡すこと
+    -- で抑制できる。
     --
     -- require側で provideするよることも考えたが, requireされた側にprovideがなかっ
     -- た場合emacsが例外を投げる。
@@ -39,7 +40,7 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     -- される。
     loadFFILine = case requireFFI of
         Just (FeatureName (UnsafeSymbol name), _) ->
-            [displaySExp $ list [symbol "load", string name]]
+            [displaySExp $ list [symbol "load", string name, symbol "nil", symbol "t"]]
         Nothing -> []
 
     defVarLines =
