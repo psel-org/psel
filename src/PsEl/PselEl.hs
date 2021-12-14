@@ -44,7 +44,7 @@ pselEl (FeatureName sym) =
         ((eq (caar alist) field)
          (cons (cons field val) (cdr alist)))
         (t
-         (cons (car alist) (psel/alist-set field val (cdr alist))))))
+         (cons (car alist) (psel/alist-set-or-insert field val (cdr alist))))))
 
 (defun psel/alist-delete (field alist)
   "Delete the first cons with car eq to field in a immutable way."
