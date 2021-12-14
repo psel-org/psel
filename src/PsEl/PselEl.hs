@@ -37,6 +37,15 @@ pselEl (FeatureName sym) =
         (t
          (cons (car alist) (psel/alist-set field val (cdr alist))))))
 
+(defun psel/alist-set-or-insert (field val alist)
+  "Update the first appearnce or insert a new field in an immutable way."
+  (cond ((null alist)
+         (cons (cons field val) nil))
+        ((eq (caar alist) field)
+         (cons (cons field val) (cdr alist)))
+        (t
+         (cons (car alist) (psel/alist-set field val (cdr alist))))))
+
 (defun psel/alist-delete (field alist)
   "Delete the first cons with car eq to field in a immutable way."
   (cond ((null alist)
