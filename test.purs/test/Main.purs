@@ -15,8 +15,25 @@ main = mkMainLike main'
 -- we don't have Effect nor Binding(do block) yet.
 main' :: {} -> Array (Array Boolean)
 main' _ =
-  [ testObject {}
+  [ testLet {}
+  , testObject {}
   , testCase {}
+  , testTypeClass {}
+  ]
+
+testLet :: {} -> Array Boolean
+testLet _ =
+  [ let a = 1
+        b = [a, a]
+    in assertEqual "let(1)" b [1,1]
+  , let a [] = b [1]
+        a [x] = b [x, x]
+        a xs = xs
+        b [] = a []
+        b [x] = a [x]
+        b [x, _] = a [x, x, x]
+        b _ = []
+    in assertEqual "letrec(1)" (b []) [1,1,1]
   ]
 
 testObject :: {} -> Array Boolean
@@ -122,3 +139,23 @@ caseComplex = case _ of
   { a: [{ a1: "a"}] } -> ["a"]
   { a: [{ a1: v1, a2: _}, { a1: _, a2: { a3: v2}} ] } -> [v1, v2]
   _ -> []
+
+testTypeClass :: {} -> Array Boolean
+testTypeClass _ =
+  [ assertEqual "type class(1)" (m1 1) "int"
+  , assertEqual "type class(2)" (m2 1) 1
+  , assertEqual "type class(3)" (m1 "b") "b"
+  , assertEqual "type class(4)" (m2 "b") 0
+  ]
+
+class TC a where
+  m1 :: a -> String
+  m2 :: a -> Int
+
+instance tcInt :: TC Int where
+  m1 _ = "int"
+  m2 a = a
+
+instance tcString :: TC String where
+  m1 s = s
+  m2 _ = 0
