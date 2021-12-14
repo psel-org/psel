@@ -26,12 +26,20 @@ Data types | Vector with constructor tag symbol in first slot and arguments in t
 
 ## TODO
 
-* [ ] Support FFI
-* [ ] Prelude fork
+* [x] Support FFI
+* [x] Prelude fork
+* [x] Make an github orgiznation
+* [ ] Make psel command spago friendly
+* [ ] Create package-set
+* [ ] Support core libraries
+  * [x] prelude
+  * [ ] effect
 * [ ] Minimal example and add Usage document
-* [ ] Support Aff
-* [ ] Write some tests
-* [ ] Add flake.nix
+* [ ] purescript-emacs
+* [ ] Support contrib libraries
+* [x] Write some tests
+* [x] Add flake.nix
+* [ ] Setup CI
 
 ## References
 
