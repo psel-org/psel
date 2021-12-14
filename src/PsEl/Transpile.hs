@@ -136,13 +136,20 @@ expr (Case _ es cas) = case' (map expr es) cas
 expr (Let _ binds e) = let' binds (expr e)
 
 -- nil 及び t は特別な定数でありは束縛やsetqはできない。
+-- vectorのリテラル表記 [a b] は a や b を評価しないことに注意。
+-- そのためvectorのリテラル表記ではなく vector関数を使う必要がある
+--
+--   A vector, like a string or a number, is considered a constant for evaluation:
+--   the result of evaluating it is the same vector. This does not evaluate or
+--   even examine the elements of the vector.
+--
 literal :: Literal (Expr Ann) -> SExp
 literal (NumericLiteral (Left i)) = integer i
 literal (NumericLiteral (Right d)) = double d
 literal (StringLiteral ps) = string $ psstring ps
 literal (CharLiteral c) = character c
 literal (BooleanLiteral b) = bool (symbol "nil") (symbol "t") b
-literal (ArrayLiteral exs) = vector $ map expr exs
+literal (ArrayLiteral exs) = list $ symbol "vector" : map expr exs
 literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 
 -- 型チェックの都合上 Prim.undefinedという未定義の参照が入ることがある。
@@ -255,7 +262,7 @@ constructor cname ids =
     -- TODO: 空の場合はそもそも Vectorで囲む必要はないかな。
     construct :: ProperName 'ConstructorName -> [SExp] -> SExp
     construct cname vals =
-        vector $ quote (symbol (constructorTag cname)) : vals
+        list $ symbol "vector" : quote (symbol (constructorTag cname)) : vals
 
 -- e.g. `[Foo ,e0 ,e1]
 constructorBinder :: ProperName 'ConstructorName -> [SExp] -> SExp
