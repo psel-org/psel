@@ -10,8 +10,19 @@ main = mkMainLike main'
 -- we don't have Effect nor Binding(do block) yet.
 main' :: {} -> Array (Array Boolean)
 main' _ =
-  [ testCase {}
+  [ testObject {}
+  , testCase {}
   ]
+
+testObject :: {} -> Array Boolean
+testObject _ =
+  [ assertEqual "object access(1)" obj.a 1
+  , assertEqual "object access(2)" obj.b 2
+  , assertEqual "object update(1)" (obj { a = 2 }) { a:2, b:2 }
+  , assertEqual "object update(2)" (obj { b = 1 }) { a:1, b:1 }
+  ]
+ where
+  obj = { a: 1, b: 2 }
 
 testCase :: {} -> Array Boolean
 testCase _ =
@@ -33,11 +44,16 @@ testCase _ =
   , assertEqual "case datatype(4)" (caseDataType (Two "1" 2)) "other"
   , assertEqual "case newtype(1)" (caseNewType (NT "a")) "a!"
   , assertEqual "case newtype(2)" (caseNewType (NT "b")) "b"
+  , assertEqual "case as(1)" (caseAs [[1,9],[3,4]]) [1,9]
+  , assertEqual "case as(2)" (caseAs [[1,2],[3,9]]) [3,9]
   , assertEqual "case multiple(1)" (caseMultiple 1 "a") "1a"
   , assertEqual "case multiple(2)" (caseMultiple 1 "c") "c"
   , assertEqual "case multiple(3)" (caseMultiple 2 "a") "2"
   , assertEqual "case multiple(4)" (caseMultiple 1 "b") "b"
   , assertEqual "case multiple(5)" (caseMultiple 1 "c") "c"
+  , assertEqual "case complex(1)" (caseComplex { a: [] }) []
+  , assertEqual "case complex(2)" (caseComplex { a: [{a1: "a", a2: { a3: "b"}}] }) ["a"]
+  , assertEqual "case complex(3)" (caseComplex { a: [{a1: "a", a2: { a3: "b"}}, {a1: "c", a2: { a3: "d"}}] }) ["a", "d"]
   ]
 
 caseInt :: Int -> String
@@ -53,8 +69,8 @@ caseBoolean = case _ of
 
 caseRecord :: {a :: Int, b :: String} -> String
 caseRecord = case _ of
-  {a: 1} -> "a"
-  {b: v, a: 2} -> v
+  { a: 1 } -> "a"
+  { b: v, a: 2 } -> v
   _ -> "c"
 
 caseArray :: Array String -> String
@@ -83,9 +99,21 @@ caseNewType = case _ of
   NT "a" -> "a!"
   NT s -> s
 
+caseAs :: Array (Array Int) -> Array Int
+caseAs = case _ of
+  [v@[1, _], [3, 4]] -> v
+  [[1, 2], v@[_, 9]] -> v
+  _ -> []
+
 caseMultiple :: Int -> String -> String
 caseMultiple = case _,_ of
   1, "a" -> "1a"
   2, _   -> "2"
   _, "b" -> "b"
   _, _   -> "c"
+
+caseComplex :: { a :: Array { a1 :: String,  a2 :: { a3 :: String }}} -> Array String
+caseComplex = case _ of
+  { a: [{ a1: "a"}] } -> ["a"]
+  { a: [{ a1: v1, a2: _}, { a1: _, a2: { a3: v2}} ] } -> [v1, v2]
+  _ -> []
