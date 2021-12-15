@@ -19,6 +19,7 @@ import Language.PureScript.Names (ProperName (runProperName), Qualified (Qualifi
 import Language.PureScript.PSString (PSString (toUTF16CodeUnits))
 import Language.PureScript.PSString qualified as PS
 import PsEl.SExp
+import PsEl.SExpConstructor qualified as C
 import RIO
 import RIO.Lens
 import RIO.NonEmpty qualified as NonEmpty
@@ -129,8 +130,8 @@ expr (Literal _ lit) = literal lit
 expr (Constructor _ _tname cname ids) = constructor cname ids
 expr (Accessor _ ps e) = objectAccess ps (expr e)
 expr (ObjectUpdate _ e xs) = objectUpdate (map (over _2 expr) xs) (expr e)
-expr (Abs _ id e) = lambda1 (localVar id) [(expr e)]
-expr (App _ e0 e1) = list [symbol "funcall", expr e0, expr e1]
+expr (Abs _ id e) = lambda1 (localVar id) [expr e]
+expr (App _ e0 e1) = C.funcall1 (expr e0) (expr e1)
 expr (Var _ qident) = var qident
 expr (Case _ es cas) = case' (map expr es) cas
 expr (Let _ binds e) = let' binds (expr e)
@@ -148,7 +149,7 @@ literal (NumericLiteral (Left i)) = integer i
 literal (NumericLiteral (Right d)) = double d
 literal (StringLiteral ps) = string $ psstring ps
 literal (CharLiteral c) = character c
-literal (BooleanLiteral b) = bool (symbol "nil") (symbol "t") b
+literal (BooleanLiteral b) = bool C.nil C.t b
 literal (ArrayLiteral exs) = list $ symbol "vector" : map expr exs
 literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 
@@ -172,7 +173,7 @@ let' binds body = list [letS, list bindS, body]
   where
     ext = \case
         NonRec _ ident expr -> [((ident, expr), False)]
-        Rec bs -> map (,True) $ map (over _1 snd) bs
+        Rec bs -> map ((,True) . over _1 snd) bs
     binds' = mconcat $ map ext binds
     letS =
         if any snd binds'

@@ -25,10 +25,12 @@ extra-source-files:
 
 library
   exposed-modules:
+    PsEl.CommandBuild
+    PsEl.CommandRun
     PsEl.ForeignTemplate
-    PsEl.Main
     PsEl.PselEl
     PsEl.SExp
+    PsEl.SExpConstructor
     PsEl.SExpPrinter
     PsEl.Transpile
 
@@ -41,7 +43,6 @@ library
     , aeson
     , base                ^>=4.14.3.0
     , neat-interpolation
-    , pretty-simple
     , purescript          ^>=0.14.4
     , purescript-cst
     , rio
@@ -53,7 +54,7 @@ library
     ImportQualifiedPost
 
 executable psel
-  main-is:          Main.hs
+  main-is:            Main.hs
 
   -- Modules included in this executable, other than Main.
   -- other-modules:
@@ -61,8 +62,14 @@ executable psel
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
   build-depends:
-    , base  ^>=4.14.3.0
+    , base                  ^>=4.14.3.0
+    , optparse-applicative
+    , optparse-generic
     , psel
+    , rio
 
-  hs-source-dirs:   app
-  default-language: Haskell2010
+  hs-source-dirs:     app
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    ImportQualifiedPost

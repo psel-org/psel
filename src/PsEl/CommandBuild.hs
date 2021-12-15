@@ -1,10 +1,13 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module PsEl.Main where
+module PsEl.CommandBuild (
+    build,
+    Config (..),
+    defaultConfig,
+) where
 
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (parseEither)
@@ -25,10 +28,9 @@ import RIO.Text (justifyLeft, pack, unpack)
 import RIO.Text qualified as T
 import System.Exit qualified as Sys
 import System.IO (hPutStrLn, putStrLn)
-import Text.Pretty.Simple (pPrint, pShow)
 
-defaultMain :: Config -> IO ()
-defaultMain Config{generateMissingForeignFiles} = do
+build :: Config -> IO ()
+build Config{generateMissingFfi} = do
     let workdir = "."
     let moduleRoot = workdir </> "output"
     let elispRoot = workdir </> "output.el"
@@ -43,19 +45,19 @@ defaultMain Config{generateMissingForeignFiles} = do
         handleModule elispRoot module'
     let warnings = mconcat warngings'
     printWarnings warnings
-    when generateMissingForeignFiles
+    when generateMissingFfi
         . doGenerateMissingForeignFiles
         . snd
         $ partitionEithers warnings
 
 data Config = Config
-    { generateMissingForeignFiles :: Bool
+    { generateMissingFfi :: Bool
     }
 
 defaultConfig :: Config
 defaultConfig =
     Config
-        { generateMissingForeignFiles = False
+        { generateMissingFfi = False
         }
 
 -- (1)
@@ -108,14 +110,13 @@ guessPackageByModulePath path = do
 guessIsCurrentPackageByModulePath :: FilePath -> Bool
 guessIsCurrentPackageByModulePath path =
     let path' = pack path
-    in T.isPrefixOf "src/" path' || T.isPrefixOf "test/" path'
-
+     in T.isPrefixOf "src/" path' || T.isPrefixOf "test/" path'
 
 printWarnings :: [Warning] -> IO ()
 printWarnings warnings = do
     let (unneeds, missings) = partitionEithers warnings
-    when (not (null unneeds)) $ putStderrLn $ displayUnneedWarngins unneeds
-    when (not (null missings)) $ putStderrLn $ displayMissingWarngins missings
+    unless (null unneeds) $ putStderrLn $ displayUnneedWarngins unneeds
+    unless (null missings) $ putStderrLn $ displayMissingWarngins missings
 
 displayUnneedWarngins :: [UnneededFFIFileWarning] -> Utf8Builder
 displayUnneedWarngins [] =
@@ -180,7 +181,6 @@ doGenerateMissingForeignFiles ws =
             putStdoutLn $ display (pack foreignSourcePath)
         putStdoutLn "\nNote: You don't need to provide feature(e.g. (provide 'Data.Eq)) in a foreign file."
         putStdoutLn "Foreign files will be copied with a diffirent file name."
-
 
 putStderrLn :: Utf8Builder -> IO ()
 putStderrLn ub = hPutBuilder stderr . getUtf8Builder $ ub <> "\n"

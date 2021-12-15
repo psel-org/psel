@@ -6,6 +6,7 @@ module PsEl.SExpPrinter where
 
 import Data.List (intersperse)
 import PsEl.SExp
+import PsEl.SExpConstructor qualified as C
 import RIO hiding (bracket)
 import RIO.Text.Partial qualified as T
 
@@ -24,7 +25,7 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
         ";; -*- lexical-binding: t; -*-"
 
     requireLines =
-        map (onFeature "require") requires
+        map (displaySExp . C.require) requires
 
     -- FFIファイルのファイル名と最終的なファイル名が異なるため,FFIファイルには
     -- provide は書かず, load する。FFIファイルは対応するelモジュールファイルか
@@ -40,17 +41,14 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     -- される。
     loadFFILine = case requireFFI of
         Just (FeatureName (UnsafeSymbol name), _) ->
-            [displaySExp $ list [symbol "load", string name, symbol "nil", symbol "t"]]
+            [displaySExp $ list [symbol "load", string name, C.nil, C.t]]
         Nothing -> []
 
     defVarLines =
         map displayDefVar defVars
 
     provideLine =
-        onFeature "provide" name
-
-    onFeature op (FeatureName name) =
-        displaySExp $ list [symbol op, quote (symbol name)]
+        displaySExp $ C.provide name
 
 displayDefVar :: DefVar -> Utf8Builder
 displayDefVar DefVar{name, definition} =

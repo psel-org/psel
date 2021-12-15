@@ -29,7 +29,7 @@ Data types | Vector with constructor tag symbol in first slot and arguments in t
 * [x] Support FFI
 * [x] Prelude fork
 * [x] Make an github orgiznation
-* [ ] Make psel command spago friendly
+* [x] Make psel command spago friendly
 * [ ] Create package-set
 * [ ] Support core libraries
   * [x] prelude
