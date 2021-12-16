@@ -20,18 +20,18 @@ pselEl (FeatureName sym) =
 
 ;; Exception
 
-(defun psel/throw-unrecoverable-error ()
-  (throw 'psel/unrecoverable-error nil))
+(defun psel/unrecoverable-error (&rest args)
+  (signal 'psel/unrecoverable-error args))
 
-(defun psel/throw-assert-error (msg)
-  (throw (cons 'psel/assert-error msg) nil))
+(defun psel/assert-error (msg)
+  (signal 'psel/assert-error (list msg)))
 
 ;; Alist
 
 (defun psel/alist-set (field val alist)
   "Update the first cons with car eq to field in a immutable way."
   (cond ((null alist)
-         (psel/throw-unrecoverable-error))
+         (psel/unrecoverable-error))
         ((eq (caar alist) field)
          (cons (cons field val) (cdr alist)))
         (t
@@ -49,7 +49,7 @@ pselEl (FeatureName sym) =
 (defun psel/alist-delete (field alist)
   "Delete the first cons with car eq to field in a immutable way."
   (cond ((null alist)
-         (psel/throw-unrecoverable-error))
+         (psel/unrecoverable-error))
         ((eq (caar alist) field)
          (cdr alist))
         (t

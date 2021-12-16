@@ -7,7 +7,7 @@
         (message label)
         (if (equal a b)
             t
-          (throw 'assert-equal-error nil))))))
+          (psel/assert-error label))))))
 
 (defvar Test.Main.assertEqualRecord
   (lambda (label)
@@ -16,7 +16,7 @@
         (message label)
         (if (psel/alist-equal a b)
             t
-          (throw 'assert-equal-error nil))))))
+          (psel/assert-error label))))))
 
 (defvar Test.Main.mkMainLike
   (lambda (f)
