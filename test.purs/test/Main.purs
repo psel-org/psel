@@ -51,6 +51,9 @@ testCase _ =
   [ assertEqual "case int(1)" (caseInt 1) "a"
   , assertEqual "case int(2)" (caseInt 2) "b"
   , assertEqual "case int(3)" (caseInt 3) "c"
+  , assertEqual "case number(1)" (caseNumber 1.1) "a"
+  , assertEqual "case number(2)" (caseNumber 2.2) "b"
+  , assertEqual "case number(3)" (caseNumber 1.11) "c"
   , assertEqual "case boolean(1)" (caseBoolean true) "true"
   , assertEqual "case boolean(2)" (caseBoolean false) "false"
   , assertEqual "case record(1)" (caseRecord { a: 1, b: "foo" }) "a"
@@ -82,6 +85,12 @@ caseInt :: Int -> String
 caseInt = case _ of
   1 -> "a"
   2 -> "b"
+  _ -> "c"
+
+caseNumber :: Number -> String
+caseNumber = case _ of
+  1.1 -> "a"
+  2.2 -> "b"
   _ -> "c"
 
 caseBoolean :: Boolean -> String
