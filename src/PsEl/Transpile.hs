@@ -229,14 +229,22 @@ case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
     -- boolean binder と object binder がやっかい。
     -- boolean binder だからといって単に t, nil というシンボル使っても意味がない
     -- (pred ..) を使って nil か t(nil以外)を判別する必要がある。
+    -- floatのbinderも使えないので pred + = を使う必要がある。
     literalBinder :: Literal (Binder Ann) -> SExp
-    literalBinder (NumericLiteral (Left i)) = integer i
-    literalBinder (NumericLiteral (Right d)) = double d
-    literalBinder (StringLiteral ps) = string $ psstring ps
-    literalBinder (CharLiteral c) = character c
-    literalBinder (BooleanLiteral b) = list [symbol "pred", bool (symbol "null") (symbol "identity") b]
-    literalBinder (ArrayLiteral bs) = backquote $ vector $ map (comma . binder) bs
-    literalBinder (ObjectLiteral xs) = objectLiteralBinder $ map (over _2 binder) xs
+    literalBinder (NumericLiteral (Left i)) =
+        integer i
+    literalBinder (NumericLiteral (Right d)) =
+        list [symbol "pred", lambda1 "v" [list [symbol "=", symbol "v", double d]]]
+    literalBinder (StringLiteral ps) =
+        string $ psstring ps
+    literalBinder (CharLiteral c) =
+        character c
+    literalBinder (BooleanLiteral b) =
+        list [symbol "pred", bool (symbol "null") (symbol "identity") b]
+    literalBinder (ArrayLiteral bs) =
+        backquote $ vector $ map (comma . binder) bs
+    literalBinder (ObjectLiteral xs) =
+        objectLiteralBinder $ map (over _2 binder) xs
 
     -- ガード節がある場合はcondを使う
     -- type Guard a = Expr a
