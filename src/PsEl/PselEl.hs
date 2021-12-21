@@ -18,6 +18,8 @@ pselEl (FeatureName sym) =
      in [trimming|
 ;; psel.el -*- lexical-binding: t; -*-
 
+(require 'seq)
+
 ;; Exception
 
 (defun psel/unrecoverable-error (&rest args)
@@ -60,6 +62,12 @@ pselEl (FeatureName sym) =
   (let ((keys (mapcar 'car a)))
     (and (eq (length keys) (length b))
          (equal a (mapcar (lambda (key) (assq key b)) keys)))))
+
+;; funcall
+
+(defmacro psel/funcall (f &rest args)
+  "funcall 1-arg function"
+  (seq-reduce (lambda (b a) `(funcall ,b ,a)) args f))
 
 (provide '$feature)
 |]
