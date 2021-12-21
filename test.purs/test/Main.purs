@@ -132,7 +132,7 @@ caseNewType = case _ of
 
 caseAs :: Array (Array Int) -> Array Int
 caseAs = case _ of
-  [v@[1, _], [3, 4]] -> v
+  [t@[1, _], [3, 4]] -> t
   [[1, 2], v@[_, 9]] -> v
   _ -> []
 

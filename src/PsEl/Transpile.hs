@@ -80,11 +80,11 @@ ffiFeatureSuffix :: Text
 ffiFeatureSuffix = "._FOREIGN_"
 
 -- PSでは ' を付けことが多いが elisp では許されていない。$ は OK。
--- ' は ~ に変換する。元々の ~ は ~~ に(ただPSではあまり ~ を使うことはないが..)変換。
+-- ' は _ に変換する。元々の _ は __ に(ただPSではあまり _ を使うことはないが..)変換。
 -- replaceの順序は重要。定数シンボル以外は必ずこの関数を通りてSymbolを作成すること。
 mkSymbol :: Text -> Symbol
-mkSymbol t =
-    UnsafeSymbol . Partial.replace "'" "~" $ Partial.replace "~" "~~" t
+mkSymbol =
+    UnsafeSymbol . Partial.replace "'" "_" . Partial.replace "_" "__"
 
 -- マクロや組込関数(built-ins, special-formも含む)の名前衝突も値スロットだけ使う分には考える必要はない。
 -- シンタックス上のキーワードではなく特別な関数が関数スロットに設定されている。
@@ -94,8 +94,18 @@ mkSymbol t =
 --          (let 2))   ;; let is special-form
 --      (+ defun let)) ;; => 3
 --
+-- ただ定数(特別なシンボルで,キーワードを除けば t, nilのみ)は束縛するとエラーが出る。
+-- https://www.gnu.org/software/emacs/manual/html_node/elisp/Constant-Variables.html
+-- Purescriptの識別子には使えない ~ 文字をケツにつける。
 localVar :: Ident -> Symbol
-localVar = mkSymbol . _identToText
+localVar ident =
+    mkSymbol $
+        if t `elem` constants
+            then t <> "~"
+            else t
+  where
+    t = _identToText ident
+    constants = ["t", "nil"]
 
 -- グローバル変数の衝突に関しては,PSモジュールのprefix(e.g. Foo.Bar.foo)を使うので衝突は基本起こらない。
 globalVar :: ModuleName -> Ident -> Symbol
@@ -304,7 +314,7 @@ objectLiteralBinder = \case
         list
             [ symbol "app"
             , lambda1
-                (mkSymbol "v")
+                "v"
                 [ list
                     [ symbol "alist-get"
                     , quote (symbol field)
