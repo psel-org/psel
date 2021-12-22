@@ -30,6 +30,12 @@ pselEl (FeatureName sym) =
 
 ;; Alist
 
+(defun psel/alist-get (field alist)
+  (let ((c (assq field alist)))
+    (if (null c)
+        (psel/unrecoverable-error)
+      (cdr c))))
+
 (defun psel/alist-set (field val alist)
   "Update the first cons with car eq to field in a immutable way."
   (cond ((null alist)

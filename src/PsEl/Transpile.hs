@@ -311,7 +311,7 @@ objectLiteralBinder = \case
             , lambda1
                 "v"
                 [ list
-                    [ symbol "alist-get"
+                    [ symbol "psel/alist-get"
                     , quote (symbol field)
                     , symbol "v"
                     ]
@@ -323,12 +323,9 @@ objectLiteralBinder = \case
 objectAccess :: PSString -> SExp -> SExp
 objectAccess fname obj =
     list
-        [ symbol "cdr"
-        , list
-            [ symbol "assq"
-            , quote (symbol (objectField fname))
-            , obj
-            ]
+        [ symbol "psel/alist-get"
+        , quote (symbol (objectField fname))
+        , obj
         ]
 
 -- 標準で非破壊的にalistを設定するための関数が提供されていない。
