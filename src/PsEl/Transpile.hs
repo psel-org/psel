@@ -195,15 +195,31 @@ let' binds body = list [letS, list bindS, body]
 -- 各CaseAlternativeは同じ数だけのbinderが必要。
 -- 複数指定の場合はリストに包んでpcaseに適用させる。(e.g. (pcase (list a b) ..))
 case' :: [SExp] -> [CaseAlternative Ann] -> SExp
-case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
+case' ss cas = list $ [symbol "pcase", target] <> concatMap caseAlt cas
   where
     target = case ss of
         [] -> error "Empty case target"
         [s] -> s
         ss -> list (symbol "list" : ss)
 
-    caseAlt :: CaseAlternative Ann -> SExp
-    caseAlt (CaseAlternative bs e) = list [binders bs, exec e]
+    -- ガード毎に別のマッチングにする必要がある。そのためにリストを返している。
+    -- 同じbinderなのにガード節毎にbinderが重複する形になるが仕方なし。
+    caseAlt :: CaseAlternative Ann -> [SExp]
+    caseAlt (CaseAlternative bs e) = do
+        (guard', ex) <- case e of
+            Left xs -> do
+                (guard, ex) <- xs
+                pure (Just guard, ex)
+            Right ex ->
+                pure (Nothing, ex)
+        pure $
+            list
+                [ maybe id addGuard guard' $ binders bs
+                , expr ex
+                ]
+      where
+        addGuard guard sexp =
+            list [symbol "and", sexp, list [symbol "guard", expr guard]]
 
     -- binderが複数ある場合は `(,a ,b) のようにリストでまとめる
     binders [] = error "Empty binder"
@@ -241,13 +257,6 @@ case' ss cas = list $ [symbol "pcase", target] <> map caseAlt cas
         backquote $ vector $ map (comma . binder) bs
     literalBinder (ObjectLiteral xs) =
         objectLiteralBinder $ map (over _2 binder) xs
-
-    -- ガード節がある場合はcondを使う
-    -- type Guard a = Expr a
-    -- A guard is just a boolean-valued expression that appears alongside a set of binders
-    exec :: Either [(Guard Ann, Expr Ann)] (Expr Ann) -> SExp
-    exec (Left xs) = list $ symbol "cond" : map (\(g, e) -> list [expr g, expr e]) xs
-    exec (Right e) = expr e
 
 -- | DataType
 
