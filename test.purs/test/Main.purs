@@ -79,6 +79,10 @@ testCase _ =
   , assertEqual "case complex(1)" (caseComplex { a: [] }) []
   , assertEqual "case complex(2)" (caseComplex { a: [{a1: "a", a2: { a3: "b"}}] }) ["a"]
   , assertEqual "case complex(3)" (caseComplex { a: [{a1: "a", a2: { a3: "b"}}, {a1: "c", a2: { a3: "d"}}] }) ["a", "d"]
+  , assertEqual "case guard(1)" (caseGuard { a: true, b: true }) "a"
+  , assertEqual "case guard(2)" (caseGuard { a: true, b: false }) "a"
+  , assertEqual "case guard(3)" (caseGuard { a: false, b: true }) "b"
+  , assertEqual "case guard(4)" (caseGuard { a: false, b: false }) "c"
   ]
 
 caseInt :: Int -> String
@@ -148,6 +152,13 @@ caseComplex = case _ of
   { a: [{ a1: "a"}] } -> ["a"]
   { a: [{ a1: v1, a2: _}, { a1: _, a2: { a3: v2}} ] } -> [v1, v2]
   _ -> []
+
+caseGuard :: { a :: Boolean, b :: Boolean } -> String
+caseGuard = case _ of
+  o
+    | o.a -> "a"
+    | o.b -> "b"
+  o -> "c"
 
 testTypeClass :: {} -> Array Boolean
 testTypeClass _ =
