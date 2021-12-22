@@ -77,11 +77,11 @@ ffiFeatureSuffix :: Text
 ffiFeatureSuffix = "._FOREIGN_"
 
 -- PSでは ' を付けことが多いが elisp では許されていない。$ は OK。
--- ' は _ に変換する。元々の _ は __ に(ただPSではあまり _ を使うことはないが..)変換。
+-- ' は ~ に変換する。元々の ~ は ~~ に(ただPSではあまり ~ を使うことはないが..)変換。
 -- replaceの順序は重要。定数シンボル以外は必ずこの関数を通りてSymbolを作成すること。
 mkSymbol :: Text -> Symbol
 mkSymbol =
-    UnsafeSymbol . Partial.replace "'" "_" . Partial.replace "_" "__"
+    UnsafeSymbol . Partial.replace "'" "~" . Partial.replace "~" "~~"
 
 -- マクロや組込関数(built-ins, special-formも含む)の名前衝突も値スロットだけ使う分には考える必要はない。
 -- シンタックス上のキーワードではなく特別な関数が関数スロットに設定されている。
@@ -93,12 +93,12 @@ mkSymbol =
 --
 -- ただ定数(特別なシンボルで,キーワードを除けば t, nilのみ)は束縛するとエラーが出る。
 -- https://www.gnu.org/software/emacs/manual/html_node/elisp/Constant-Variables.html
--- Purescriptの識別子には使えない ~ 文字をケツにつける。
+-- Purescriptの識別子には使えない ^ 文字をケツにつける。
 localVar :: Ident -> Symbol
 localVar ident =
     mkSymbol $
         if t `elem` constants
-            then t <> "~"
+            then t <> "^"
             else t
   where
     t = _identToText ident
