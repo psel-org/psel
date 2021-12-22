@@ -1,8 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -190,9 +187,7 @@ let' binds body = list [letS, list bindS, body]
             then symbol "letrec"
             else symbol "let*"
     bindS =
-        map
-            (\(ident, e) -> list [symbol (localVar ident), expr e])
-            (map fst binds')
+        map ((\(ident, e) -> list [symbol (localVar ident), expr e]) . fst) binds'
 
 -- pcaseマクロを利用する
 --
