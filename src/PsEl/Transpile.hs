@@ -224,7 +224,7 @@ case' ss cas = list $ [symbol "pcase", target] <> concatMap caseAlt cas
     -- binderが複数ある場合は `(,a ,b) のようにリストでまとめる
     binders [] = error "Empty binder"
     binders [b] = binder b
-    binders bs = backquote $ list $ map (comma . binder) bs
+    binders bs = backquote $ list $ map (commaBinder . binder) bs
 
     -- newtypeのマッチングの場合はConstructorBindersが呼ばれる。
     -- 当然newtypeなので下の値がそのまま入っているサブbinderは一つのはず。
@@ -254,9 +254,20 @@ case' ss cas = list $ [symbol "pcase", target] <> concatMap caseAlt cas
     literalBinder (BooleanLiteral b) =
         list [symbol "pred", bool (symbol "null") (symbol "identity") b]
     literalBinder (ArrayLiteral bs) =
-        backquote $ vector $ map (comma . binder) bs
+        backquote $ vector $ map (commaBinder . binder) bs
     literalBinder (ObjectLiteral xs) =
         objectLiteralBinder $ map (over _2 binder) xs
+
+-- Arrayやコンスラクタの要素は何も考えず , を付けると動作はするが不要なケースに
+-- ついてしまう。例えば ,`[..] は [..] で良いし ,"a" は "a"で良い。
+commaBinder :: SExp -> SExp
+commaBinder s@(SExp s') = case s' of
+    Integer _ -> s
+    Double _ -> s
+    String _ -> s
+    Character _ -> s
+    Backquote se -> se
+    _ -> comma s
 
 -- | DataType
 
@@ -283,7 +294,7 @@ constructorBinder :: ProperName 'ConstructorName -> [SExp] -> SExp
 constructorBinder cname binds =
     backquote
         . vector
-        $ symbol (constructorTag cname) : map comma binds
+        $ symbol (constructorTag cname) : map commaBinder binds
 
 constructorTag :: ProperName 'ConstructorName -> Symbol
 constructorTag = mkSymbol . runProperName
