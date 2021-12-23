@@ -1,11 +1,12 @@
 module Test.Main where
 
+import Test.TCO
+import Test.Utils
+
 -- Pre-prelude world. We don't have == nor Effect yet.
 -- Elisp特有の事情だが、レコードの比較は単純なequalでできないため別関数に分けている。
 -- spagoからのmain関数起動は無引数の呼出しを想定しているが、
 -- Effectモジュールが使えるまでFFIで関数を無引数関数で包む必要がある。
-foreign import assertEqual :: forall a. String -> a -> a -> Boolean
-foreign import assertEqualRecord :: forall r. String -> { | r }  -> { | r } -> Boolean
 foreign import data MainLike :: Type
 foreign import mkMainLike :: forall a. ({} -> a) -> MainLike
 
@@ -19,6 +20,7 @@ main' _ =
   , testObject {}
   , testCase {}
   , testTypeClass {}
+  , testTCO {}
   ]
 
 testLet :: {} -> Array Boolean
