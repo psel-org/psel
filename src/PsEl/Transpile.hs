@@ -261,13 +261,11 @@ case' ss cas = list $ [symbol "pcase", target] <> concatMap caseAlt cas
 -- Arrayやコンスラクタの要素は何も考えず , を付けると動作はするが不要なケースに
 -- ついてしまう。例えば ,`[..] は [..] で良いし ,"a" は "a"で良い。
 commaBinder :: SExp -> SExp
-commaBinder s@(SExp s') = case s' of
-    Integer _ -> s
-    Double _ -> s
-    String _ -> s
-    Character _ -> s
-    Backquote se -> se
-    _ -> comma s
+commaBinder (SExp (Backquote se)) =
+    se
+commaBinder s
+    | isLiteral s = s
+    | otherwise = comma s
 
 -- | DataType
 

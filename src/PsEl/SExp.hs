@@ -1,9 +1,6 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module PsEl.SExp where
@@ -14,7 +11,7 @@ import RIO.NonEmpty qualified as NonEmpty
 import RIO.Text (unpack)
 
 -- Fix Point
-data SExp = SExp {unSExpr :: SExpF SExp}
+newtype SExp = SExp {unSExpr :: SExpF SExp}
 
 -- Expression Functor
 data SExpF e
@@ -74,12 +71,28 @@ backquote = SExp . Backquote
 comma :: SExp -> SExp
 comma = SExp . Comma
 
--- association list(e.g. `((foo . ,1) (bar . ,2))
+-- 文字列や数値などのリテラル表記かを判定。
+-- vector(e.g. [1 2 3])もリテラルであることに注意。
+isLiteral :: SExp -> Bool
+isLiteral (SExp s') = case s' of
+    Integer _ -> True
+    Double _ -> True
+    String _ -> True
+    Character _ -> True
+    Vector _ -> True
+    _ -> False
+
+-- association list(e.g. `((foo . ,v) (bar . 2))
+-- don't need comma
 alist :: [(Symbol, SExp)] -> SExp
 alist =
     backquote
         . list
-        . map (uncurry cons . (over _2 comma) . (over _1 symbol))
+        . map (uncurry cons . over _2 comma' . over _1 symbol)
+  where
+    comma' s
+        | isLiteral s = s
+        | otherwise = comma s
 
 lambda1 :: Symbol -> [SExp] -> SExp
 lambda1 arg body = SExp $ Lambda1 arg body
