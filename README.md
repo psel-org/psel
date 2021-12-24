@@ -6,7 +6,7 @@ WIP
 
 For those who want to extend Emacs with PureScript instead of Elisp.
 Nothing wrong with Elisp, but some prefers statically-typed languages over dynamically-typed languages.
-However, it is not intended to register the generated elisp as an Elisp package in registries like MELPA.
+However, since the generated elisp is non-humna-friendly code, it is not intended to register the generated elisp as an Elisp package to registries like MELPA.
 
 ## Type Mapping
 
