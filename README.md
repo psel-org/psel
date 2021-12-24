@@ -2,11 +2,29 @@
 
 WIP
 
-## Why
+## Motivation
 
 For those who want to extend Emacs with PureScript instead of Elisp.
 Nothing wrong with Elisp, but some prefers statically-typed languages over dynamically-typed languages.
 However, since the generated elisp is non-human-friendly, it is not intended to register the generated elisp as an Elisp package to registries like MELPA.
+
+## Installation
+
+Currently, there is no release yet. You can build from source or using nix to install.
+
+### Build from source
+
+Requires `cabal-install` and `GHC` 8.10.7.
+
+    git clone git@github.com:psel-org/psel.git
+    cd psel
+    cabal install
+
+### Install using Nix(flake.nix)
+
+Requires `nix` >= 2.4.
+
+    nix profile install github:psel-org/psel
 
 ## Type Mapping
 
