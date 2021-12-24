@@ -26,6 +26,22 @@ Requires `nix` >= 2.4.
 
     nix profile install github:psel-org/psel
 
+## Usage
+
+Psel is intended to use through Spago. Set `backend = "psel"` in your `spago.dhall` file.
+There is no package-set release yet. You can use WIP package-set `https://raw.githubusercontent.com/psel-org/package-sets/main/src/el-0.14.5-20211116/packages.dhall` for now.
+
+```dhall
+{ name = "foo"
+, dependencies = [ "prelude" ]
+, packages = https://raw.githubusercontent.com/psel-org/package-sets/main/src/el-0.14.5-20211116/packages.dhall
+, backend = "psel"
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+}
+```
+
+`spago build` while output all .el files under `output.el` directory. To require from emacs, add this path to `load-path` variable.
+
 ## Type Mapping
 
 Purescript | Elisp
