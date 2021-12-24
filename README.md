@@ -10,7 +10,7 @@ However, since the generated elisp is non-human-friendly, it is not intended to 
 
 ## Installation
 
-Currently, there is no release yet. You can build from source or using nix to install.
+Currently, there is no release yet. You can build from source or use nix to install.
 
 ### Build from source
 
@@ -42,7 +42,15 @@ There is no package-set release yet. You can use WIP package-set `https://raw.gi
 
 `spago build` will output all .el files under `output.el` directory. To require from emacs, add this path to `load-path` variable.
 
-## Type Mapping
+## Module and Top-level bindings
+
+`Data.Foo` module will be transpiled to `Data.Foo.el`.
+Top-level binding `fooBar` in `Data.Foo` module will be transpiled to `(defvar Data.Foo.fooBar ...)`.
+
+Though since we can't use `'` character for symbols in elisp, `'` inside binding name will be converted to `~`.
+For example, `fooBar'` will be transpiled to `(defvar Data.Foo.fooBar~ ...)`.
+
+## Type
 
 Purescript | Elisp
 -----------|------
