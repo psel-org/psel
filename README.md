@@ -10,7 +10,7 @@ However, since the generated elisp is non-human-friendly, it is not intended to 
 
 ## Installation
 
-Currently, there is no release yet. You can build from source or use nix to install.
+Currently, there is no release yet. To install `psel` command, you can build from source or use nix to install.
 
 ### Build from source
 
