@@ -40,7 +40,7 @@ There is no package-set release yet. You can use WIP package-set `https://raw.gi
 }
 ```
 
-`spago build` while output all .el files under `output.el` directory. To require from emacs, add this path to `load-path` variable.
+`spago build` will output all .el files under `output.el` directory. To require from emacs, add this path to `load-path` variable.
 
 ## Type Mapping
 
