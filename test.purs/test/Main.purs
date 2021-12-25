@@ -1,6 +1,6 @@
 module Test.Main where
 
-import Test.TCO
+import Test.PsEl.TCO
 import Test.Utils
 
 -- Pre-prelude world. We don't have == nor Effect yet.

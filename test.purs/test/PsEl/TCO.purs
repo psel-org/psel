@@ -1,9 +1,6 @@
-module Test.TCO where
+module Test.PsEl.TCO where
 
 import Test.Utils
-
-foreign import eqInt :: Int -> Int -> Boolean
-foreign import succInt :: Int -> Int
 
 testTCO :: {} -> Array Boolean
 testTCO _ =

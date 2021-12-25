@@ -17,3 +17,12 @@
         (if (psel/alist-equal a b)
             t
           (psel/assert-error label))))))
+
+(defvar Test.Utils.eqInt
+  (lambda (a)
+    (lambda (b)
+      (= a b))))
+
+(defvar Test.Utils.succInt
+  (lambda (i)
+    (1+ i)))
