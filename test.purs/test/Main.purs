@@ -1,6 +1,7 @@
 module Test.Main where
 
 import Test.PsEl.TCO
+import Test.PsEl.Record
 import Test.Utils
 
 -- Pre-prelude world. We don't have == nor Effect yet.
@@ -17,10 +18,10 @@ main = mkMainLike main'
 main' :: {} -> Array (Array Boolean)
 main' _ =
   [ testLet {}
-  , testObject {}
   , testCase {}
   , testTypeClass {}
   , testTCO {}
+  , testRecord {}
   ]
 
 testLet :: {} -> Array Boolean
@@ -37,16 +38,6 @@ testLet _ =
         b _ = []
     in assertEqual "letrec(1)" (b []) [1,1,1]
   ]
-
-testObject :: {} -> Array Boolean
-testObject _ =
-  [ assertEqual "object access(1)" obj.a 1
-  , assertEqual "object access(2)" obj.b 2
-  , assertEqualRecord "object update(1)" (obj { a = 2 }) { a:2, b:2 }
-  , assertEqualRecord "object update(2)" (obj { b = 1 }) { a:1, b:1 }
-  ]
- where
-  obj = { a: 1, b: 2 }
 
 testCase :: {} -> Array Boolean
 testCase _ =

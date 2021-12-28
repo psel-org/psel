@@ -76,12 +76,11 @@ ffiFeatureName (ModuleName s) = FeatureName $ mkSymbol $ s <> ffiFeatureSuffix
 ffiFeatureSuffix :: Text
 ffiFeatureSuffix = "._FOREIGN_"
 
--- PSでは ' を付けことが多いが elisp では許されていない。$ は OK。
--- ' は ~ に変換する。元々の ~ は ~~ に(ただPSではあまり ~ を使うことはないが..)変換。
--- replaceの順序は重要。定数シンボル以外は必ずこの関数を通りてSymbolを作成すること。
+-- elispではシンボルは任意の文字列を
+-- ただしS式として表示する際適切なエスケープが必要(例えば空白や ' は \ でのエスケープが必要)。
+-- 参照 https://www.gnu.org/software/emacs/manual/html_node/elisp/Symbol-Type.html
 mkSymbol :: Text -> Symbol
-mkSymbol =
-    UnsafeSymbol . Partial.replace "'" "~" . Partial.replace "~" "~~"
+mkSymbol = UnsafeSymbol
 
 -- マクロや組込関数(built-ins, special-formも含む)の名前衝突も値スロットだけ使う分には考える必要はない。
 -- シンタックス上のキーワードではなく特別な関数が関数スロットに設定されている。

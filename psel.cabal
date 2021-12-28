@@ -45,6 +45,7 @@ library
     , neat-interpolation
     , purescript          ^>=0.14.4
     , purescript-cst
+    , regex
     , rio
 
   hs-source-dirs:     src

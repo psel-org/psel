@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module PsEl.SExpPrinter where
 
@@ -9,6 +10,7 @@ import PsEl.SExp
 import PsEl.SExpConstructor qualified as C
 import RIO hiding (bracket)
 import RIO.Text.Partial qualified as T
+import Text.RE.TDFA.Text qualified as RE
 
 displayFeature :: Feature -> Utf8Builder
 displayFeature Feature{name, requires, requireFFI, defVars} =
@@ -82,12 +84,25 @@ displayString t = "\"" <> display (quote t) <> "\""
   where
     quote = T.replace "\"" "\\\""
 
--- 空白を含むシンボルってないよな..?
+-- elispでは
+-- https://www.gnu.org/software/emacs/manual/html_node/elisp/Symbol-Type.html
+-- まずエスケープが必要な文字に関しては \ を前置。
+-- 文字レベルでエスケープが不要としても全体として数値として解釈されてしまうものは先頭を\でエスケープする。
 displaySymbol :: Symbol -> Utf8Builder
-displaySymbol (UnsafeSymbol s) = display s
+displaySymbol (UnsafeSymbol s) = display $ escape s
+  where
+    -- 取り敢えず[0-9a-zA-Z-+=*/_~!@$%^&:<>{}_] 以外は \ でエスケープすることにする。
+    -- ? もエスケープは不要なのだが ?a など文字リテラルと
+    -- ただし文字リテラル(?a)や数値として解釈されるもの(-1.5)などは先頭に \ を付ける必要がある
+    escape =
+        (RE.*=~/ [RE.ed|[^[:alnum:].+=*/_~!@$%^&:<>{}_-]///\${0}|])
+    isNumberLiteral =
+        RE.matched . (RE.?=~ [RE.re|^[+-]?[[:digit:]]*(\.[[:digit:]]+)?$|])
+    unambiguousify t =
+        bool id ("\\" <>) $ isNumberLiteral t
 
 paren :: [Utf8Builder] -> Utf8Builder
-paren xs = "(" <> (mconcat $ intersperse " " xs) <> ")"
+paren xs = "(" <> mconcat (intersperse " " xs) <> ")"
 
 bracket :: [Utf8Builder] -> Utf8Builder
-bracket xs = "[" <> (mconcat $ intersperse " " xs) <> "]"
+bracket xs = "[" <> mconcat (intersperse " " xs) <> "]"
