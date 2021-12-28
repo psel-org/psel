@@ -10,6 +10,7 @@ testTCO _ =
   , assertEqual "self recursion(2) 10" ((selfRec2 0 10) {}) 1
   , assertEqual "self recursion(3) 20" (selfRec3 0 20) 2
   , assertEqual "self recursion(4) 10" (selfRec4 0 10) 1
+  , assertEqual "self recursion(5) 10" (selfRec4 0 10) 1
   ]
 
 selfRec1 :: Int -> Int -> Int
@@ -38,5 +39,18 @@ selfRec4 i to = go i
     go i
       | eqInt i to = 1
       | true = selfRec4 (succInt i) to
+
+-- 再帰関数のローカル変数も再帰関数の場合。
+-- top-downに再帰関数をloop化した場合でも正常に動作する必要あり。
+-- これJS正しいのか？？？怪しいところ
+selfRec5 :: Int -> Int -> Int
+selfRec5 i to
+  | eqInt i to = 1
+  | eqInt i 10 = go i
+  where
+    go i
+      | eqInt i 20 = go (succInt i)
+      | true = selfRec5 i to
+  | true = selfRec5 (succInt i) to
 
 -- 型クラス使って辞書受け取るバージョンも
