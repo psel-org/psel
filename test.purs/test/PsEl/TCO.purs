@@ -10,7 +10,8 @@ testTCO _ =
   , assertEqual "self recursion(2) 10" ((selfRec2 0 10) {}) 1
   , assertEqual "self recursion(3) 20" (selfRec3 0 20) 2
   , assertEqual "self recursion(4) 10" (selfRec4 0 10) 1
-  , assertEqual "self recursion(5) 10" (selfRec4 0 10) 1
+  , assertEqual "self recursion(5) 10" (selfRec5 0 10) 1
+  , assertEqual "self recursion(6) 10" (selfRec6 0 10) 1
   ]
 
 selfRec1 :: Int -> Int -> Int
@@ -52,5 +53,14 @@ selfRec5 i to
       | eqInt i 20 = go (succInt i)
       | true = selfRec5 i to
   | true = selfRec5 (succInt i) to
+
+-- JS backend doesn't optimize this case, though it should be able.
+-- Rare case.
+selfRec6 :: Int -> Int -> Int
+selfRec6 i to
+  | eqInt i to = 1
+  | true =
+    let f = selfRec6 (succInt i)
+    in f to
 
 -- 型クラス使って辞書受け取るバージョンも
