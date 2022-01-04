@@ -47,9 +47,6 @@ There is no package-set release yet. You can use WIP package-set `https://raw.gi
 `Data.Foo` module will be transpiled to `Data.Foo.el`.
 Top-level binding `fooBar` in `Data.Foo` module will be transpiled to `(defvar Data.Foo.fooBar ...)`.
 
-Though since we can't use `'` character for symbols in elisp, `'` inside binding name will be converted to `~`.
-For example, `fooBar'` will be transpiled to `(defvar Data.Foo.fooBar~ ...)`.
-
 ## Type
 
 Purescript | Elisp
