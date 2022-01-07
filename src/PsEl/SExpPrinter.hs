@@ -68,6 +68,8 @@ displaySExp = cata display'
     display' (Cons car cdr) = paren [car <> " . " <> cdr]
     display' (List xs) = paren xs
     display' (Vector xs) = bracket xs
+    display' (Cond cases) = displayCond cases
+    display' (Let letType binds body) = displayLetish letType binds body
     display' (Lambda1 arg body) = paren $ ["lambda", paren [displaySymbol arg]] <> body
     display' (Quote s) = "'" <> s
     display' (Backquote s) = "`" <> s
@@ -77,6 +79,25 @@ displaySExp = cata display'
     cata f = go
       where
         go = f . fmap go . unSExpr
+
+displayCond :: [(Utf8Builder, Utf8Builder)] -> Utf8Builder
+displayCond cases =
+    paren $
+        displaySymbol "cond" :
+        map (\(p, e) -> paren [p, e]) cases
+
+-- Let系
+displayLetish :: LetType -> [(Symbol, Utf8Builder)] -> [Utf8Builder] -> Utf8Builder
+displayLetish letType binds body =
+    paren $
+        [ displaySymbol name
+        , paren (map (\(s, e) -> paren [displaySymbol s, e]) binds)
+        ]
+            <> body
+  where
+    name = case letType of
+        LetStar -> "let*"
+        LetRec -> "letrec"
 
 -- 取り敢えず雑なquotingで
 displayString :: Text -> Utf8Builder

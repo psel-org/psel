@@ -14,6 +14,9 @@ import RIO.Text (unpack)
 newtype SExp = SExp {unSExpr :: SExpF SExp}
 
 -- Expression Functor
+-- 制御構造(let*,letrec,cond,pcase)は List でも表現できるが,
+-- SExpに対して最適化をかける際に解析する必要があるため別途コンストラクタで表現。
+-- Listは関数呼出しもしくはリテラル時のみ使う。
 data SExpF e
     = Integer Integer
     | Double Double
@@ -23,6 +26,8 @@ data SExpF e
     | Cons e e
     | List [e]
     | Vector [e]
+    | Cond [(e, e)]
+    | Let LetType [(Symbol, e)] [e]
     | -- | 基本一引数のlambdaしか使わないので
       Lambda1 Symbol [e]
     | -- | e.g. '(foo 2)
@@ -32,6 +37,11 @@ data SExpF e
     | -- | e.g. `(,a)
       Comma e
     deriving (Functor, Foldable, Traversable)
+
+data LetType
+    = LetStar
+    | LetRec
+    deriving (Eq, Ord)
 
 -- Unsafe prefixは任意のテキストが妥当なelispシンボルにならないことを示している。
 newtype Symbol = UnsafeSymbol Text
@@ -93,6 +103,15 @@ alist =
     comma' s
         | isLiteral s = s
         | otherwise = comma s
+
+cond :: [(SExp, SExp)] -> SExp
+cond = SExp . Cond
+
+letStar :: [(Symbol, SExp)] -> [SExp] -> SExp
+letStar bindings body = SExp $ Let LetStar bindings body
+
+letRec :: [(Symbol, SExp)] -> [SExp] -> SExp
+letRec bindings body = SExp $ Let LetRec bindings body
 
 lambda1 :: Symbol -> [SExp] -> SExp
 lambda1 arg body = SExp $ Lambda1 arg body

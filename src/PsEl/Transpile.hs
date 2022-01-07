@@ -15,7 +15,7 @@ import Language.PureScript.Errors (SourceSpan)
 import Language.PureScript.Names (ProperName (runProperName), Qualified (Qualified), mkQualified)
 import Language.PureScript.PSString (PSString (toUTF16CodeUnits))
 import Language.PureScript.PSString qualified as PS
-import PsEl.SExp
+import PsEl.SExp hiding (Let)
 import PsEl.SExpConstructor qualified as C
 import RIO
 import RIO.Lens
@@ -175,18 +175,23 @@ var v@(Qualified mn id)
 -- ただ殆どのケースで let* (頑張れば let)で十分なのに letrec は微妙か？
 -- NonRec のみなら let*,一つでも Rec があれば letrec でいいかな。
 let' :: [Bind Ann] -> SExp -> SExp
-let' binds body = list [letS, list bindS, body]
+let' binds body = letC bindS [body]
   where
+    ext :: Bind a -> [((Ident, Expr a), Bool)]
     ext = \case
         NonRec _ ident expr -> [((ident, expr), False)]
         Rec bs -> map ((,True) . over _1 snd) bs
-    binds' = mconcat $ map ext binds
-    letS =
+
+    binds' =
+        mconcat $ map ext binds
+
+    letC =
         if any snd binds'
-            then symbol "letrec"
-            else symbol "let*"
+            then letRec
+            else letStar
+
     bindS =
-        map ((\(ident, e) -> list [symbol (localVar ident), expr e]) . fst) binds'
+        map (bimap localVar expr . fst) binds'
 
 -- pcaseマクロを利用する
 --
