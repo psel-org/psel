@@ -199,14 +199,29 @@ let' binds body = letC bindS [body]
 -- 各CaseAlternativeは同じ数だけのbinderが必要。
 -- 複数指定の場合はリストに包んでpcaseに適用させる。(e.g. (pcase (list a b) ..))
 case' :: [SExp] -> [CaseAlternative Ann] -> SExp
-case' ss cas = list $ [symbol "pcase", target] <> concatMap caseAlt cas
+case' ss cas = list $ [symbol "pcase", target] <> cases
   where
     target = case ss of
         [] -> error "Empty case target"
         [s] -> s
         ss -> list (symbol "list" : ss)
 
-    -- ガード毎に別のマッチングにする必要がある。そのためにリストを返している。
+    -- マッチング節が一つしかなくガード節を使っている場合は cond が利用できる。
+    cases = case cas of
+        [] ->
+            []
+        [CaseAlternative bs (Left xs)] ->
+            [ list
+                [ binders bs
+                , cond (map (bimap expr expr) xs)
+                ]
+            ]
+        cs ->
+            concatMap caseAlt cs
+
+    -- ガード毎に別のマッチングにする必要がある。
+    -- あるマッチング節のいずれのガード節でも該当しない場合次のマッチング節に移る必要があるが,
+    -- マッチング節一つでcondで分岐した場合,移ることができないため。そのためにリストを返している。
     -- 同じbinderなのにガード節毎にbinderが重複する形になるが仕方なし。
     caseAlt :: CaseAlternative Ann -> [SExp]
     caseAlt (CaseAlternative bs e) = do
