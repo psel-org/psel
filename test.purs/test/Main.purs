@@ -18,11 +18,25 @@ main = mkMainLike main'
 main' :: {} -> Array (Array Boolean)
 main' _ =
   [ testLet {}
+  , testCond {}
   , testCase {}
   , testTypeClass {}
   , testTCO {}
   , testRecord {}
   ]
+
+testCond :: {} -> Array Boolean
+testCond _ =
+  [ assertEqual "if(1)" (f true) 1
+  , assertEqual "if(2)" (f false) 0
+  , assertEqual "guard(1)" (g true) "b"
+  , assertEqual "guard(2)" (g false) "o"
+  ]
+  where
+    f b = if b then 1 else 0
+    g b
+      | b = "b"
+      | true = "o"
 
 testLet :: {} -> Array Boolean
 testLet _ =
