@@ -199,22 +199,19 @@ let' binds body = letC bindS [body]
 -- 各CaseAlternativeは同じ数だけのbinderが必要。
 -- 複数指定の場合はリストに包んでpcaseに適用させる。(e.g. (pcase (list a b) ..))
 case' :: [SExp] -> [CaseAlternative Ann] -> SExp
-case' ss cas = list $ [symbol "pcase", target] <> cases
+case' ss cas = pcase ss cases
   where
-    target = case ss of
-        [] -> error "Empty case target"
-        [s] -> s
-        ss -> list (symbol "list" : ss)
-
     -- マッチング節が一つしかなくガード節を使っている場合は cond が利用できる。
+    cases :: [PcaseAlt SExp]
     cases = case cas of
         [] ->
             []
         [CaseAlternative bs (Left xs)] ->
-            [ list
-                [ binders bs
-                , cond (map (bimap expr expr) xs)
-                ]
+            [ PcaseAlt
+                { patterns = map binder bs
+                , guard = Nothing
+                , code = cond (map (bimap expr expr) xs)
+                }
             ]
         cs ->
             concatMap caseAlt cs
@@ -223,7 +220,7 @@ case' ss cas = list $ [symbol "pcase", target] <> cases
     -- あるマッチング節のいずれのガード節でも該当しない場合次のマッチング節に移る必要があるが,
     -- マッチング節一つでcondで分岐した場合,移ることができないため。そのためにリストを返している。
     -- 同じbinderなのにガード節毎にbinderが重複する形になるが仕方なし。
-    caseAlt :: CaseAlternative Ann -> [SExp]
+    caseAlt :: CaseAlternative Ann -> [PcaseAlt SExp]
     caseAlt (CaseAlternative bs e) = do
         (guard', ex) <- case e of
             Left xs -> do
@@ -232,59 +229,43 @@ case' ss cas = list $ [symbol "pcase", target] <> cases
             Right ex ->
                 pure (Nothing, ex)
         pure $
-            list
-                [ maybe id addGuard guard' $ binders bs
-                , expr ex
-                ]
-      where
-        addGuard guard sexp =
-            list [symbol "and", sexp, list [symbol "guard", expr guard]]
-
-    -- binderが複数ある場合は `(,a ,b) のようにリストでまとめる
-    binders [] = error "Empty binder"
-    binders [b] = binder b
-    binders bs = backquote $ list $ map (commaBinder . binder) bs
+            PcaseAlt
+                { patterns = map binder bs
+                , guard = expr <$> guard'
+                , code = expr ex
+                }
 
     -- newtypeのマッチングの場合はConstructorBindersが呼ばれる。
     -- 当然newtypeなので下の値がそのまま入っているサブbinderは一つのはず。
     -- Annのメタ情報を見る必要がある。
-    binder :: Binder Ann -> SExp
-    binder (NullBinder _) = symbol "_"
+    binder :: Binder Ann -> PPattern SExp
+    binder (NullBinder _) = PAny
     binder (LiteralBinder _ lit) = literalBinder lit
-    binder (VarBinder _ id) = symbol $ localVar id
+    binder (VarBinder _ id) = PBind $ localVar id
     binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ [b]) = binder b
     binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ _bs) = error "Unexpected binding"
     binder (ConstructorBinder _ _ (Qualified _ cname) bs) = constructorBinder cname (map binder bs)
-    binder (NamedBinder _ id b) = list [symbol "and", symbol (localVar id), binder b]
+    binder (NamedBinder _ id b) = PAnd [PBind (localVar id), binder b]
 
     -- boolean binder と object binder がやっかい。
     -- boolean binder だからといって単に t, nil というシンボル使っても意味がない
     -- (pred ..) を使って nil か t(nil以外)を判別する必要がある。
     -- floatのbinderも使えないので pred + = を使う必要がある。
-    literalBinder :: Literal (Binder Ann) -> SExp
+    literalBinder :: Literal (Binder Ann) -> PPattern SExp
     literalBinder (NumericLiteral (Left i)) =
-        integer i
+        PInteger i
     literalBinder (NumericLiteral (Right d)) =
-        list [symbol "pred", lambda1 "v" [list [symbol "=", symbol "v", double d]]]
+        PPred (lambda1 "v" [list [symbol "=", symbol "v", double d]])
     literalBinder (StringLiteral ps) =
-        string $ psstring ps
+        PString $ psstring ps
     literalBinder (CharLiteral c) =
-        character c
+        PCharacter c
     literalBinder (BooleanLiteral b) =
-        list [symbol "pred", bool (symbol "null") (symbol "identity") b]
+        PPredBool b
     literalBinder (ArrayLiteral bs) =
-        backquote $ vector $ map (commaBinder . binder) bs
+        PBackquotedVector $ map (Right . binder) bs
     literalBinder (ObjectLiteral xs) =
         objectLiteralBinder $ map (over _2 binder) xs
-
--- Arrayやコンスラクタの要素は何も考えず , を付けると動作はするが不要なケースに
--- ついてしまう。例えば ,`[..] は [..] で良いし ,"a" は "a"で良い。
-commaBinder :: SExp -> SExp
-commaBinder (SExp (Backquote se)) =
-    se
-commaBinder s
-    | isLiteral s = s
-    | otherwise = comma s
 
 -- | DataType
 
@@ -307,11 +288,9 @@ constructor cname ids =
         list $ symbol "vector" : quote (symbol (constructorTag cname)) : vals
 
 -- e.g. `[Foo ,e0 ,e1]
-constructorBinder :: ProperName 'ConstructorName -> [SExp] -> SExp
+constructorBinder :: ProperName 'ConstructorName -> [PPattern SExp] -> PPattern SExp
 constructorBinder cname binds =
-    backquote
-        . vector
-        $ symbol (constructorTag cname) : map commaBinder binds
+    PBackquotedVector $ Left (constructorTag cname) : map Right binds
 
 constructorTag :: ProperName 'ConstructorName -> Symbol
 constructorTag = mkSymbol . runProperName
@@ -327,16 +306,15 @@ objectLiteral xs = alist $ map (over _1 objectField) xs
 -- alistを使っての構造分解はできない。順序が異なるし,部分的にマッチングも有りえるため。
 -- (app (lambda (v) (alist-get '<field> v)) PATTERN) を利用する
 -- lambda1 で名前vが導入されているが,シャドウする危険はない。
-objectLiteralBinder :: [(PSString, SExp)] -> SExp
+objectLiteralBinder :: [(PSString, PPattern SExp)] -> PPattern SExp
 objectLiteralBinder = \case
-    [] -> symbol "_"
+    [] -> PAny
     [(ps, bind')] -> bind (objectField ps, bind')
-    bs -> list $ symbol "and" : map (bind . over _1 objectField) bs
+    bs -> PAnd $ map (bind . over _1 objectField) bs
   where
     bind (field, bind') =
-        list
-            [ symbol "app"
-            , lambda1
+        PApp
+            ( lambda1
                 "v"
                 [ list
                     [ symbol "psel/alist-get"
@@ -344,8 +322,8 @@ objectLiteralBinder = \case
                     , symbol "v"
                     ]
                 ]
-            , bind'
-            ]
+            )
+            bind'
 
 -- e.g. (cdr (assq 'foo obj))
 objectAccess :: PSString -> SExp -> SExp
