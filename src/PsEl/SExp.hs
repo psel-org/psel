@@ -32,6 +32,7 @@ data SExpF e
     | Cons e e
     | List [e]
     | Vector [e]
+    | If e e e
     | Cond [(e, e)]
     | Let LetType [(Symbol, e)] [e]
     | Pcase [e] [PcaseAlt e]

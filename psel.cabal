@@ -31,6 +31,7 @@ library
     PsEl.PselEl
     PsEl.SExp
     PsEl.SExpConstructor
+    PsEl.SExpOptimize
     PsEl.SExpPrinter
     PsEl.Transpile
 

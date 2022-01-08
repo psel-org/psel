@@ -76,6 +76,7 @@ display' (Symbol sym) = displaySymbol sym
 display' (Cons car cdr) = paren [car <> " . " <> cdr]
 display' (List xs) = paren xs
 display' (Vector xs) = bracket xs
+display' (If e et ee) = paren ["if", e, et, ee]
 display' (Cond cases) = displayCond cases
 display' (Let letType binds body) = displayLetish letType binds body
 display' (Lambda1 arg body) = paren $ ["lambda", paren [displaySymbol arg]] <> body

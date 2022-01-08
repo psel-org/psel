@@ -17,6 +17,7 @@ import Language.PureScript.CoreFn.FromJSON (moduleFromJSON)
 import PsEl.ForeignTemplate (foreignTemplate)
 import PsEl.PselEl (pselEl)
 import PsEl.SExp (Feature (..), Symbol, featureFileName)
+import PsEl.SExpOptimize (optimize)
 import PsEl.SExpPrinter (displayFeature, displayString)
 import PsEl.Transpile (ffiFeatureSuffix, pselFeature, transpile)
 import RIO
@@ -65,7 +66,7 @@ defaultConfig =
 -- また必要なFFI定義を
 handleModule :: FilePath -> P.Module P.Ann -> IO [Warning]
 handleModule elispRoot module'@P.Module{P.moduleName, P.modulePath} = do
-    let feature = transpile module'
+    let feature = optimize $ transpile module'
     let Feature{name, requireFFI} = feature
     let targetPath = elispRoot </> featureFileName name
     let foreignSourcePath = FP.replaceExtension modulePath "el"
