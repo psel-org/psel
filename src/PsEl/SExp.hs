@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -14,6 +15,7 @@ import RIO.Text (unpack)
 
 -- Fix Point
 newtype SExp = SExp {unSExpr :: SExpF SExp}
+    deriving Generic
 
 type instance RS.Base SExp = SExpF
 instance RS.Recursive SExp where
@@ -49,7 +51,7 @@ data SExpF e
       Lambda1 Symbol [e]
     | -- | e.g. 'foo
       QuotedSymbol Symbol
-    deriving (Functor, Foldable, Traversable)
+    deriving (Functor, Foldable, Traversable, Generic)
 
 data LetType
     = LetStar
@@ -84,7 +86,7 @@ data PPattern e
       -- list [symbol "pred", bool (symbol "null") (symbol "identity") b]
       PPredBool Bool
     | PApp e (PPattern e)
-    deriving (Functor, Foldable, Traversable)
+    deriving (Functor, Foldable, Traversable, Generic)
 
 -- Unsafe prefixは任意のテキストが妥当なelispシンボルにならないことを示している。
 newtype Symbol = UnsafeSymbol Text
