@@ -164,7 +164,7 @@ literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 -- -> 違うっぽい。参照はされるが使われることはない,かな。なので 'ps-prim-undefined に。
 var :: Qualified Ident -> SExp
 var v@(Qualified mn id)
-    | v == primUndefined = quote $ symbol "ps-prim-undefined"
+    | v == primUndefined = quotedSymbol "ps-prim-undefined"
     | otherwise = symbol (maybe localVar globalVar mn id)
   where
     primUndefined = mkQualified (Ident C.undefined) C.Prim
@@ -285,7 +285,7 @@ constructor cname ids =
     -- TODO: 空の場合はそもそも Vectorで囲む必要はないかな。
     construct :: ProperName 'ConstructorName -> [SExp] -> SExp
     construct cname vals =
-        list $ symbol "vector" : quote (symbol (constructorTag cname)) : vals
+        list $ symbol "vector" : quotedSymbol (constructorTag cname) : vals
 
 -- e.g. `[Foo ,e0 ,e1]
 constructorBinder :: ProperName 'ConstructorName -> [PPattern SExp] -> PPattern SExp
@@ -318,7 +318,7 @@ objectLiteralBinder = \case
                 "v"
                 [ list
                     [ symbol "psel/alist-get"
-                    , quote (symbol field)
+                    , quotedSymbol field
                     , symbol "v"
                     ]
                 ]
@@ -330,7 +330,7 @@ objectAccess :: PSString -> SExp -> SExp
 objectAccess fname obj =
     list
         [ symbol "psel/alist-get"
-        , quote (symbol (objectField fname))
+        , quotedSymbol (objectField fname)
         , obj
         ]
 
@@ -347,7 +347,7 @@ objectUpdate updates obj = foldl' alistSet obj updates
     alistSet obj (fname, s) =
         list
             [ symbol "psel/alist-set"
-            , quote (symbol (objectField fname))
+            , quotedSymbol (objectField fname)
             , s
             ]
 

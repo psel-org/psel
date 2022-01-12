@@ -33,6 +33,7 @@ library
     PsEl.SExpConstructor
     PsEl.SExpOptimize
     PsEl.SExpPrinter
+    PsEl.SExpRaw
     PsEl.Transpile
 
   -- Modules included in this library but not exported.
@@ -43,6 +44,7 @@ library
   build-depends:
     , aeson
     , base                ^>=4.14.3.0
+    , microlens
     , neat-interpolation
     , purescript          ^>=0.14.4
     , purescript-cst

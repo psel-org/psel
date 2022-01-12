@@ -23,27 +23,33 @@ instance RS.Recursive SExp where
 -- 制御構造(let*,letrec,cond,pcase)は List でも表現できるが,
 -- SExpに対して最適化をかける際に解析する必要があるため別途コンストラクタで表現。
 -- Listは関数呼出しもしくはリテラル時のみ使う。
+--
+-- S式とCoreFnの間の中間言語を目指す?
+-- 一般的なS式までトランスパイル時に落してしまうと情報も落ちてしまって最適化がしづらくなる。
+-- 例えば Quote/Backquote/Comm。自由変数の参照を取得する場合,quote中のシンボルは無視する必要がある。
+-- またbackquoteがネストされた場合,そのコンテキストも考慮する必要がある。
+-- Quote/Backqoute自体は限定的に使われているので,より情報を残した形で
+-- SExpFから除くというのが正しい気もするが
+-- Quote もSymbolにしか適用されていないので Quote e よりは QuotedSymbol Symbol として方が
+--
+-- ただ懸念としてはあまり上げすぎるとCoreFnと同じレベルになってしまう。
 data SExpF e
     = Integer Integer
     | Double Double
     | String Text
     | Character Char
     | Symbol Symbol
-    | Cons e e
     | List [e]
     | Vector [e]
+    | MkAlist [(Symbol, e)]
     | If e e e
     | Cond [(e, e)]
     | Let LetType [(Symbol, e)] [e]
     | Pcase [e] [PcaseAlt e]
     | -- | 基本一引数のlambdaしか使わないので
       Lambda1 Symbol [e]
-    | -- | e.g. '(foo 2)
-      Quote e
-    | -- | e.g. `(foo 1)
-      Backquote e
-    | -- | e.g. `(,a)
-      Comma e
+    | -- | e.g. 'foo
+      QuotedSymbol Symbol
     deriving (Functor, Foldable, Traversable)
 
 data LetType
@@ -103,44 +109,16 @@ symbol = SExp . Symbol
 vector :: [SExp] -> SExp
 vector = SExp . Vector
 
--- e.g. (car . cdr)
-cons :: SExp -> SExp -> SExp
-cons car cdr = SExp $ Cons car cdr
-
 list :: [SExp] -> SExp
 list = SExp . List
 
-quote :: SExp -> SExp
-quote = SExp . Quote
-
-backquote :: SExp -> SExp
-backquote = SExp . Backquote
-
-comma :: SExp -> SExp
-comma = SExp . Comma
-
--- 文字列や数値などのリテラル表記かを判定。
--- vector(e.g. [1 2 3])もリテラルであることに注意。
-isLiteral :: SExp -> Bool
-isLiteral (SExp s') = case s' of
-    Integer _ -> True
-    Double _ -> True
-    String _ -> True
-    Character _ -> True
-    Vector _ -> True
-    _ -> False
+quotedSymbol :: Symbol -> SExp
+quotedSymbol = SExp . QuotedSymbol
 
 -- association list(e.g. `((foo . ,v) (bar . 2))
 -- don't need comma
 alist :: [(Symbol, SExp)] -> SExp
-alist =
-    backquote
-        . list
-        . map (uncurry cons . over _2 comma' . over _1 symbol)
-  where
-    comma' s
-        | isLiteral s = s
-        | otherwise = comma s
+alist = SExp . MkAlist
 
 cond :: [(SExp, SExp)] -> SExp
 cond = SExp . Cond

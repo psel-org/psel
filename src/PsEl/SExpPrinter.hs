@@ -10,7 +10,9 @@ import Data.Functor.Foldable (cata, para)
 import Data.List (intersperse)
 import PsEl.SExp
 import PsEl.SExpConstructor qualified as C
+import PsEl.SExpRaw qualified as Raw
 import RIO hiding (bracket)
+import RIO.Lens (_1, _2)
 import RIO.Text.Partial qualified as T
 import Text.RE.TDFA.Text qualified as RE
 
@@ -59,44 +61,43 @@ displayDefVar DefVar{name, definition} =
     displaySExp $ list [symbol "defvar", symbol name, definition]
 
 displaySExp :: SExp -> Utf8Builder
-displaySExp = para display''
+displaySExp = cata displaySExpFRaw . convSExp
 
--- 遅延評価だからコレ重くないはず？遅い場合は諦めて displayPcase を実装する。
--- 綺麗にやるなら Pcaseコンストラクタは SExpF から分離するべきなんだろうが..
-display'' :: SExpF (SExp, Utf8Builder) -> Utf8Builder
-display'' (Pcase exprs cases) = displaySExp $ convPcase (fst <$> exprs) (fmap (fst <$>) cases)
-display'' s = display' $ snd <$> s
+convSExp :: SExp -> Raw.SExp
+convSExp = cata conv
+  where
+    conv :: SExpF Raw.SExp -> Raw.SExp
+    conv (Integer i) = Raw.integer i
+    conv (Double d) = Raw.double d
+    conv (String s) = Raw.string s
+    conv (Character c) = Raw.character c
+    conv (Symbol sym) = Raw.symbol sym
+    conv (List xs) = Raw.list xs
+    conv (Vector xs) = Raw.vector xs
+    conv (MkAlist xs) = convMkAlist xs
+    conv (If e et ee) = Raw.list [Raw.symbol "if", e, et, ee]
+    conv (Cond alts) = Raw.list $ Raw.symbol "cond" : map (\(p, e) -> Raw.list [p, e]) alts
+    conv (Let letType binds body) = convLetish letType binds body
+    conv (Pcase exprs cases) = convPcase exprs cases
+    conv (Lambda1 arg body) = Raw.list $ [Raw.symbol "lambda", Raw.list [Raw.symbol arg]] <> body
+    conv (QuotedSymbol qs) = Raw.quote $ Raw.symbol qs
 
-display' :: SExpF Utf8Builder -> Utf8Builder
-display' (Integer i) = display i
-display' (Double d) = display d
-display' (String t) = displayString t
-display' (Character c) = "?" <> display c
-display' (Symbol sym) = displaySymbol sym
-display' (Cons car cdr) = paren [car <> " . " <> cdr]
-display' (List xs) = paren xs
-display' (Vector xs) = bracket xs
-display' (If e et ee) = paren ["if", e, et, ee]
-display' (Cond cases) = displayCond cases
-display' (Let letType binds body) = displayLetish letType binds body
-display' (Lambda1 arg body) = paren $ ["lambda", paren [displaySymbol arg]] <> body
-display' (Quote s) = "'" <> s
-display' (Backquote s) = "`" <> s
-display' (Comma s) = "," <> s
-display' (Pcase _ _) = error "Unexpected"
-
-displayCond :: [(Utf8Builder, Utf8Builder)] -> Utf8Builder
-displayCond cases =
-    paren $
-        displaySymbol "cond" :
-        map (\(p, e) -> paren [p, e]) cases
+convMkAlist :: [(Symbol, Raw.SExp)] -> Raw.SExp
+convMkAlist =
+    Raw.backquote
+        . Raw.list
+        . map (uncurry Raw.cons . over _2 comma' . over _1 Raw.symbol)
+  where
+    comma' s
+        | Raw.isLiteral s = s
+        | otherwise = Raw.comma s
 
 -- Let系
-displayLetish :: LetType -> [(Symbol, Utf8Builder)] -> [Utf8Builder] -> Utf8Builder
-displayLetish letType binds body =
-    paren $
-        [ displaySymbol name
-        , paren (map (\(s, e) -> paren [displaySymbol s, e]) binds)
+convLetish :: LetType -> [(Symbol, Raw.SExp)] -> [Raw.SExp] -> Raw.SExp
+convLetish letType binds body =
+    Raw.list $
+        [ Raw.symbol name
+        , Raw.list (map (\(s, e) -> Raw.list [Raw.symbol s, e]) binds)
         ]
             <> body
   where
@@ -107,14 +108,14 @@ displayLetish letType binds body =
 -- displayPcase :: [Utf8Builder] -> [PcaseAlt Utf8Builder] -> Utf8Builder
 -- displayPcase exprs cases = _
 
-convPcase :: [SExp] -> [PcaseAlt SExp] -> SExp
+convPcase :: [Raw.SExp] -> [PcaseAlt Raw.SExp] -> Raw.SExp
 convPcase exprs cases =
-    list $ [symbol "pcase", unifyExprs exprs] <> map caseAlt cases
+    Raw.list $ [Raw.symbol "pcase", unifyExprs exprs] <> map caseAlt cases
   where
     unifyExprs = \case
         [] -> error "Empty pcase exprs"
         [s] -> s
-        ss -> list (symbol "list" : ss)
+        ss -> Raw.list (Raw.symbol "list" : ss)
 
     unifyPatterns = \case
         [] -> error "Empty pcase exprs"
@@ -122,46 +123,59 @@ convPcase exprs cases =
         ps -> PBackquotedList (map Right ps)
 
     caseAlt PcaseAlt{patterns, guard, code} =
-        list
+        Raw.list
             [ pattern' (unifyPatterns patterns) & maybe id addGuard guard
             , code
             ]
       where
         addGuard guard sexp =
-            list [symbol "and", sexp, list [symbol "guard", guard]]
+            Raw.list [Raw.symbol "and", sexp, Raw.list [Raw.symbol "guard", guard]]
 
-    pattern' :: PPattern SExp -> SExp
+    pattern' :: PPattern Raw.SExp -> Raw.SExp
     pattern' PAny =
-        symbol "_"
+        Raw.symbol "_"
     pattern' (PInteger i) =
-        integer i
+        Raw.integer i
     pattern' (PString s) =
-        string s
+        Raw.string s
     pattern' (PCharacter c) =
-        character c
+        Raw.character c
     pattern' (PBind sym) =
-        symbol sym
+        Raw.symbol sym
     pattern' (PBackquotedList ps) =
-        backquote . list $ map (either symbol (commaMaybe . pattern')) ps
+        Raw.backquote . Raw.list $ map (either Raw.symbol (commaMaybe . pattern')) ps
     pattern' (PBackquotedVector ps) =
-        backquote . vector $ map (either symbol (commaMaybe . pattern')) ps
+        Raw.backquote . Raw.vector $ map (either Raw.symbol (commaMaybe . pattern')) ps
     pattern' (PAnd ps) =
-        list $ symbol "and" : map pattern' ps
+        Raw.list $ Raw.symbol "and" : map pattern' ps
     pattern' (PPred pred) =
-        list [symbol "pred", pred]
+        Raw.list [Raw.symbol "pred", pred]
     pattern' (PPredBool b) =
-        list [symbol "pred", bool (symbol "null") (symbol "identity") b]
+        Raw.list [Raw.symbol "pred", bool (Raw.symbol "null") (Raw.symbol "identity") b]
     pattern' (PApp s p) =
-        list [symbol "app", s, pattern' p]
+        Raw.list [Raw.symbol "app", s, pattern' p]
 
     -- 入れ子になっている不要な (`) は取り除かれる。
     -- e.g. `[ ... ,`[...] -> `[ ... [...]
-    commaMaybe :: SExp -> SExp
-    commaMaybe (SExp (Backquote se)) =
+    commaMaybe :: Raw.SExp -> Raw.SExp
+    commaMaybe (Raw.SExp (Raw.Backquote se)) =
         se
     commaMaybe s
-        | isLiteral s = s
-        | otherwise = comma s
+        | Raw.isLiteral s = s
+        | otherwise = Raw.comma s
+
+displaySExpFRaw :: Raw.SExpF Utf8Builder -> Utf8Builder
+displaySExpFRaw (Raw.Integer i) = display i
+displaySExpFRaw (Raw.Double d) = display d
+displaySExpFRaw (Raw.String t) = displayString t
+displaySExpFRaw (Raw.Character c) = "?" <> display c
+displaySExpFRaw (Raw.Symbol sym) = displaySymbol sym
+displaySExpFRaw (Raw.Cons car cdr) = paren [car <> " . " <> cdr]
+displaySExpFRaw (Raw.List xs) = paren xs
+displaySExpFRaw (Raw.Vector xs) = bracket xs
+displaySExpFRaw (Raw.Quote s) = "'" <> s
+displaySExpFRaw (Raw.Backquote s) = "`" <> s
+displaySExpFRaw (Raw.Comma s) = "," <> s
 
 -- 取り敢えず雑なquotingで
 displayString :: Text -> Utf8Builder
