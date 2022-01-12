@@ -40,7 +40,6 @@ data SExpF e
     | Character Char
     | Symbol Symbol
     | List [e]
-    | Vector [e]
     | MkAlist [(Symbol, e)]
     | If e e e
     | Cond [(e, e)]
@@ -105,9 +104,6 @@ character = SExp . Character
 
 symbol :: Symbol -> SExp
 symbol = SExp . Symbol
-
-vector :: [SExp] -> SExp
-vector = SExp . Vector
 
 list :: [SExp] -> SExp
 list = SExp . List

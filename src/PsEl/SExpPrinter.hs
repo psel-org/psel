@@ -73,7 +73,6 @@ convSExp = cata conv
     conv (Character c) = Raw.character c
     conv (Symbol sym) = Raw.symbol sym
     conv (List xs) = Raw.list xs
-    conv (Vector xs) = Raw.vector xs
     conv (MkAlist xs) = convMkAlist xs
     conv (If e et ee) = Raw.list [Raw.symbol "if", e, et, ee]
     conv (Cond alts) = Raw.list $ Raw.symbol "cond" : map (\(p, e) -> Raw.list [p, e]) alts
