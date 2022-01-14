@@ -41,7 +41,6 @@ data SExpF e
     | String Text
     | Character Char
     | Symbol Symbol
-    | List [e]
     | MkAlist [(Symbol, e)]
     | If e e e
     | Cond [(e, e)]
@@ -51,6 +50,8 @@ data SExpF e
       Lambda1 Symbol e
     | -- | 1引数関数の呼出し
       FunCall1 e e
+    | -- | ネイティブ関数の呼出し(関数スロット)
+      FunCallNative Symbol [e]
     | -- | e.g. 'foo
       QuotedSymbol Symbol
     deriving (Functor, Foldable, Traversable, Generic)
@@ -109,9 +110,6 @@ character = SExp . Character
 symbol :: Symbol -> SExp
 symbol = SExp . Symbol
 
-list :: [SExp] -> SExp
-list = SExp . List
-
 quotedSymbol :: Symbol -> SExp
 quotedSymbol = SExp . QuotedSymbol
 
@@ -143,6 +141,9 @@ lambdaN args body =
 
 funcall1 :: SExp -> SExp -> SExp
 funcall1 f arg = SExp $ FunCall1 f arg
+
+funcallNative :: Symbol -> [SExp] -> SExp
+funcallNative f args = SExp $ FunCallNative f args
 
 --
 data DefVar = DefVar

@@ -156,7 +156,7 @@ literal (NumericLiteral (Right d)) = double d
 literal (StringLiteral ps) = string $ psstring ps
 literal (CharLiteral c) = character c
 literal (BooleanLiteral b) = bool C.nil C.t b
-literal (ArrayLiteral exs) = list $ symbol "vector" : map expr exs
+literal (ArrayLiteral exs) = funcallNative "vector" (map expr exs)
 literal (ObjectLiteral xs) = objectLiteral $ map (over _2 expr) xs
 
 -- 型チェックの都合上 Prim.undefinedという未定義の参照が入ることがある。
@@ -255,7 +255,7 @@ case' ss cas = pcase ss cases
     literalBinder (NumericLiteral (Left i)) =
         PInteger i
     literalBinder (NumericLiteral (Right d)) =
-        PPred (lambda1 "v" (list [symbol "=", symbol "v", double d]))
+        PPred (lambda1 "v" (funcallNative "=" [symbol "v", double d]))
     literalBinder (StringLiteral ps) =
         PString $ psstring ps
     literalBinder (CharLiteral c) =
@@ -285,7 +285,7 @@ constructor cname ids =
     -- TODO: 空の場合はそもそも Vectorで囲む必要はないかな。
     construct :: ProperName 'ConstructorName -> [SExp] -> SExp
     construct cname vals =
-        list $ symbol "vector" : quotedSymbol (constructorTag cname) : vals
+        funcallNative "vector" $ quotedSymbol (constructorTag cname) : vals
 
 -- e.g. `[Foo ,e0 ,e1]
 constructorBinder :: ProperName 'ConstructorName -> [PPattern SExp] -> PPattern SExp
@@ -316,9 +316,9 @@ objectLiteralBinder = \case
         PApp
             ( lambda1
                 "v"
-                ( list
-                    [ symbol "psel/alist-get"
-                    , quotedSymbol field
+                ( funcallNative
+                    "psel/alist-get"
+                    [ quotedSymbol field
                     , symbol "v"
                     ]
                 )
@@ -328,9 +328,9 @@ objectLiteralBinder = \case
 -- e.g. (cdr (assq 'foo obj))
 objectAccess :: PSString -> SExp -> SExp
 objectAccess fname obj =
-    list
-        [ symbol "psel/alist-get"
-        , quotedSymbol (objectField fname)
+    funcallNative
+        "psel/alist-get"
+        [ quotedSymbol (objectField fname)
         , obj
         ]
 
@@ -345,9 +345,9 @@ objectUpdate :: [(PSString, SExp)] -> SExp -> SExp
 objectUpdate updates obj = foldl' alistSet obj updates
   where
     alistSet obj (fname, s) =
-        list
-            [ symbol "psel/alist-set"
-            , quotedSymbol (objectField fname)
+        funcallNative
+            "psel/alist-set"
+            [ quotedSymbol (objectField fname)
             , s
             ]
 

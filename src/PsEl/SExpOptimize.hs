@@ -54,7 +54,7 @@ replacePcaseToIf
     ( Pcase
             [e]
             [PcaseAlt [PPredBool b] Nothing thenE, PcaseAlt [PAny] Nothing elseE]
-        ) = If (bool (list [symbol "not", e]) e b) thenE elseE
+        ) = If (bool (funcallNative "not" [e]) e b) thenE elseE
 replacePcaseToIf s = s
 
 -- 変数のbindingのみ行なってる単一Altのpcase式の除去。

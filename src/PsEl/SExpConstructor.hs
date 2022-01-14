@@ -12,10 +12,13 @@ t :: SExp
 t = symbol "t"
 
 require :: FeatureName -> SExp
-require (FeatureName name) = list [symbol "require", quotedSymbol name]
+require (FeatureName name) =
+    funcallNative "require" [quotedSymbol name]
 
 provide :: FeatureName -> SExp
-provide (FeatureName name) = list [symbol "provide", quotedSymbol name]
+provide (FeatureName name) =
+    funcallNative "provide" [quotedSymbol name]
 
 funcall0 :: SExp -> SExp
-funcall0 f = list [symbol "funcall", f]
+funcall0 f =
+    funcallNative "funcall" [f]

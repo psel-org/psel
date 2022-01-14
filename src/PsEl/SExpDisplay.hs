@@ -47,7 +47,7 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
     -- される。
     loadFFILine = case requireFFI of
         Just (FeatureName (UnsafeSymbol name), _) ->
-            [displaySExp $ list [symbol "load", string name, C.nil, C.t]]
+            [displaySExp $ funcallNative "load" [string name, C.nil, C.t]]
         Nothing -> []
 
     defVarLines =
@@ -58,7 +58,7 @@ displayFeature Feature{name, requires, requireFFI, defVars} =
 
 displayDefVar :: DefVar -> Utf8Builder
 displayDefVar DefVar{name, definition} =
-    displaySExp $ list [symbol "defvar", symbol name, definition]
+    displaySExp $ funcallNative "defvar" [symbol name, definition]
 
 displaySExp :: SExp -> Utf8Builder
 displaySExp = cata displaySExpFRaw . convSExp
@@ -72,7 +72,6 @@ convSExp = cata conv
     conv (String s) = Raw.string s
     conv (Character c) = Raw.character c
     conv (Symbol sym) = Raw.symbol sym
-    conv (List xs) = Raw.list xs
     conv (MkAlist xs) = convMkAlist xs
     conv (If e et ee) = Raw.list [Raw.symbol "if", e, et, ee]
     conv (Cond alts) = Raw.list $ Raw.symbol "cond" : map (\(p, e) -> Raw.list [p, e]) alts
@@ -80,6 +79,7 @@ convSExp = cata conv
     conv (Pcase exprs cases) = convPcase exprs cases
     conv (Lambda1 arg body) = Raw.list [Raw.symbol "lambda", Raw.list [Raw.symbol arg], body]
     conv (FunCall1 f arg) = Raw.list [Raw.symbol "funcall", f, arg]
+    conv (FunCallNative sym args) = Raw.list $ Raw.symbol sym : args
     conv (QuotedSymbol qs) = Raw.quote $ Raw.symbol qs
 
 convMkAlist :: [(Symbol, Raw.SExp)] -> Raw.SExp

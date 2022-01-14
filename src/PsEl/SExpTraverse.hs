@@ -80,6 +80,11 @@ freeVars p s = cata go s [] mempty
         arg' <- arg (IArg : ix) vars
         pure $ SExp $ FunCall1 f' arg'
 
+    -- 関数呼出し(ネイティブ)
+    go (FunCallNative sym args) ix vars = do
+        args' <- traverse (\a -> a (IArg : ix) vars) args
+        pure $ SExp $ FunCallNative sym args'
+
     -- if
     go (If condE thenE elseE) ix vars = do
         condE' <- condE (ICond : ix) vars
@@ -95,11 +100,6 @@ freeVars p s = cata go s [] mempty
                 pure (condE', bodyE')
         alts' <- traverse f alts
         pure $ SExp $ Cond alts'
-
-    -- list
-    go (List xs) ix vars = do
-        xs' <- traverse (\e -> e (IArg : ix) vars) xs
-        pure $ SExp $ List xs'
 
     -- mkalist
     go (MkAlist xs) ix vars = do
