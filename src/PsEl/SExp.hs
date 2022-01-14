@@ -15,7 +15,7 @@ import RIO.Text (unpack)
 
 -- Fix Point
 newtype SExp = SExp {unSExpr :: SExpF SExp}
-    deriving Generic
+    deriving (Generic)
 
 type instance RS.Base SExp = SExpF
 instance RS.Recursive SExp where
@@ -49,6 +49,8 @@ data SExpF e
     | Pcase [e] [PcaseAlt e]
     | -- | 基本一引数のlambdaしか使わないので
       Lambda1 Symbol e
+    | -- | 1引数関数の呼出し
+      FunCall1 e e
     | -- | e.g. 'foo
       QuotedSymbol Symbol
     deriving (Functor, Foldable, Traversable, Generic)
@@ -138,6 +140,9 @@ lambdaN :: NonEmpty Symbol -> SExp -> SExp
 lambdaN args body =
     let a0 :| as = NonEmpty.reverse args
      in foldl' (flip lambda1) (lambda1 a0 body) as
+
+funcall1 :: SExp -> SExp -> SExp
+funcall1 f arg = SExp $ FunCall1 f arg
 
 --
 data DefVar = DefVar

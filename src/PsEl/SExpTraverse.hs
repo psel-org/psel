@@ -74,6 +74,12 @@ freeVars p s = cata go s [] mempty
         alts' <- traverse (pcaseAlt ix vars) alts
         pure $ SExp $ Pcase exps' alts'
 
+    -- 関数呼出し(funcall)
+    go (FunCall1 f arg) ix vars = do
+        f' <- f (IFunCall1 : ix) vars
+        arg' <- arg (IArg : ix) vars
+        pure $ SExp $ FunCall1 f' arg'
+
     -- if
     go (If condE thenE elseE) ix vars = do
         condE' <- condE (ICond : ix) vars
