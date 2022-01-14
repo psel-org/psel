@@ -31,8 +31,8 @@ library
     PsEl.PselEl
     PsEl.SExp
     PsEl.SExpConstructor
+    PsEl.SExpDisplay
     PsEl.SExpOptimize
-    PsEl.SExpPrinter
     PsEl.SExpRaw
     PsEl.SExpTraverse
     PsEl.Transpile

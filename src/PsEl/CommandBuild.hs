@@ -18,7 +18,7 @@ import PsEl.ForeignTemplate (foreignTemplate)
 import PsEl.PselEl (pselEl)
 import PsEl.SExp (Feature (..), Symbol, featureFileName)
 import PsEl.SExpOptimize (optimize)
-import PsEl.SExpPrinter (displayFeature, displayString)
+import PsEl.SExpDisplay (displayFeature, displayString)
 import PsEl.Transpile (ffiFeatureSuffix, pselFeature, transpile)
 import RIO
 import RIO.Directory qualified as Dir

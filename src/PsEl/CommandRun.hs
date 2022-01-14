@@ -9,7 +9,7 @@ import Language.PureScript.CST.Types (Ident (getIdent), QualifiedName (Qualified
 import Language.PureScript.Names (Ident (Ident))
 import PsEl.SExp (symbol)
 import PsEl.SExpConstructor qualified as C
-import PsEl.SExpPrinter (displaySExp)
+import PsEl.SExpDisplay (displaySExp)
 import PsEl.Transpile qualified as Trp
 import RIO
 import RIO.Lens (_1, _2)

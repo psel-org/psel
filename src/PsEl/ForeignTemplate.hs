@@ -3,7 +3,7 @@
 module PsEl.ForeignTemplate where
 
 import PsEl.SExp (DefVar (DefVar, definition, name), SExp (SExp), Symbol, symbol)
-import PsEl.SExpPrinter qualified as Printer
+import PsEl.SExpDisplay qualified as Display
 import RIO
 import RIO.List (intersperse)
 
@@ -21,7 +21,7 @@ foreignTemplate symbols =
         ]
 
     defVarLines =
-        map Printer.displayDefVar templateDefVars
+        map Display.displayDefVar templateDefVars
 
     templateDefVars =
         map (\s -> DefVar{name = s, definition = placehold}) symbols

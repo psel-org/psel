@@ -4,7 +4,7 @@ module PsEl.PselEl where
 
 import NeatInterpolation (trimming)
 import PsEl.SExp (FeatureName (FeatureName))
-import PsEl.SExpPrinter (displaySymbol)
+import PsEl.SExpDisplay (displaySymbol)
 import RIO
 
 -- 生成するelで足りない関数を定義。全てのモジュールelよりrequireされる必要あり。

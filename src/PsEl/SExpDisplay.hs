@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module PsEl.SExpPrinter where
+module PsEl.SExpDisplay where
 
 import Data.Functor.Foldable (cata, para)
 import Data.List (intersperse)
