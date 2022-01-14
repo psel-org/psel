@@ -136,7 +136,7 @@ expr (Literal _ lit) = literal lit
 expr (Constructor _ _tname cname ids) = constructor cname ids
 expr (Accessor _ ps e) = objectAccess ps (expr e)
 expr (ObjectUpdate _ e xs) = objectUpdate (map (over _2 expr) xs) (expr e)
-expr (Abs _ id e) = lambda1 (localVar id) [expr e]
+expr (Abs _ id e) = lambda1 (localVar id) (expr e)
 expr (App _ e0 e1) = C.funcall1 (expr e0) (expr e1)
 expr (Var _ qident) = var qident
 expr (Case _ es cas) = case' (map expr es) cas
@@ -175,7 +175,7 @@ var v@(Qualified mn id)
 -- ただ殆どのケースで let* (頑張れば let)で十分なのに letrec は微妙か？
 -- NonRec のみなら let*,一つでも Rec があれば letrec でいいかな。
 let' :: [Bind Ann] -> SExp -> SExp
-let' binds body = letC bindS [body]
+let' binds = letC bindS
   where
     ext :: Bind a -> [((Ident, Expr a), Bool)]
     ext = \case
@@ -255,7 +255,7 @@ case' ss cas = pcase ss cases
     literalBinder (NumericLiteral (Left i)) =
         PInteger i
     literalBinder (NumericLiteral (Right d)) =
-        PPred (lambda1 "v" [list [symbol "=", symbol "v", double d]])
+        PPred (lambda1 "v" (list [symbol "=", symbol "v", double d]))
     literalBinder (StringLiteral ps) =
         PString $ psstring ps
     literalBinder (CharLiteral c) =
@@ -278,7 +278,7 @@ constructor cname ids =
     case NonEmpty.nonEmpty (map localVar ids) of
         Just args ->
             let vals = map symbol $ NonEmpty.toList args
-             in lambdaN args [construct cname vals]
+             in lambdaN args (construct cname vals)
         Nothing ->
             construct cname []
   where
@@ -316,12 +316,12 @@ objectLiteralBinder = \case
         PApp
             ( lambda1
                 "v"
-                [ list
+                ( list
                     [ symbol "psel/alist-get"
                     , quotedSymbol field
                     , symbol "v"
                     ]
-                ]
+                )
             )
             bind'
 

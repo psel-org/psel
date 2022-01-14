@@ -46,7 +46,7 @@ library
     , aeson
     , base                ^>=4.14.3.0
     , generic-lens
-    , microlens
+    , lens
     , neat-interpolation
     , purescript          ^>=0.14.4
     , purescript-cst

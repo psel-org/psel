@@ -78,7 +78,7 @@ convSExp = cata conv
     conv (Cond alts) = Raw.list $ Raw.symbol "cond" : map (\(p, e) -> Raw.list [p, e]) alts
     conv (Let letType binds body) = convLetish letType binds body
     conv (Pcase exprs cases) = convPcase exprs cases
-    conv (Lambda1 arg body) = Raw.list $ [Raw.symbol "lambda", Raw.list [Raw.symbol arg]] <> body
+    conv (Lambda1 arg body) = Raw.list [Raw.symbol "lambda", Raw.list [Raw.symbol arg], body]
     conv (QuotedSymbol qs) = Raw.quote $ Raw.symbol qs
 
 convMkAlist :: [(Symbol, Raw.SExp)] -> Raw.SExp
@@ -92,13 +92,13 @@ convMkAlist =
         | otherwise = Raw.comma s
 
 -- Let系
-convLetish :: LetType -> [(Symbol, Raw.SExp)] -> [Raw.SExp] -> Raw.SExp
+convLetish :: LetType -> [(Symbol, Raw.SExp)] -> Raw.SExp -> Raw.SExp
 convLetish letType binds body =
-    Raw.list $
+    Raw.list
         [ Raw.symbol name
         , Raw.list (map (\(s, e) -> Raw.list [Raw.symbol s, e]) binds)
+        , body
         ]
-            <> body
   where
     name = case letType of
         LetStar -> "let*"

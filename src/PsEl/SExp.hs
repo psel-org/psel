@@ -45,10 +45,10 @@ data SExpF e
     | MkAlist [(Symbol, e)]
     | If e e e
     | Cond [(e, e)]
-    | Let LetType [(Symbol, e)] [e]
+    | Let LetType [(Symbol, e)] e
     | Pcase [e] [PcaseAlt e]
     | -- | 基本一引数のlambdaしか使わないので
-      Lambda1 Symbol [e]
+      Lambda1 Symbol e
     | -- | e.g. 'foo
       QuotedSymbol Symbol
     deriving (Functor, Foldable, Traversable, Generic)
@@ -121,23 +121,23 @@ alist = SExp . MkAlist
 cond :: [(SExp, SExp)] -> SExp
 cond = SExp . Cond
 
-letStar :: [(Symbol, SExp)] -> [SExp] -> SExp
+letStar :: [(Symbol, SExp)] -> SExp -> SExp
 letStar bindings body = SExp $ Let LetStar bindings body
 
-letRec :: [(Symbol, SExp)] -> [SExp] -> SExp
+letRec :: [(Symbol, SExp)] -> SExp -> SExp
 letRec bindings body = SExp $ Let LetRec bindings body
 
 pcase :: [SExp] -> [PcaseAlt SExp] -> SExp
 pcase exps cases = SExp $ Pcase exps cases
 
-lambda1 :: Symbol -> [SExp] -> SExp
+lambda1 :: Symbol -> SExp -> SExp
 lambda1 arg body = SExp $ Lambda1 arg body
 
 -- e.g. (lambda (a) (lambda (b) ...))
-lambdaN :: NonEmpty Symbol -> [SExp] -> SExp
+lambdaN :: NonEmpty Symbol -> SExp -> SExp
 lambdaN args body =
     let a0 :| as = NonEmpty.reverse args
-     in foldl' (\body arg -> lambda1 arg [body]) (lambda1 a0 body) as
+     in foldl' (flip lambda1) (lambda1 a0 body) as
 
 --
 data DefVar = DefVar
