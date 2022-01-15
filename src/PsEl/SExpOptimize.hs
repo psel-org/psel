@@ -7,11 +7,12 @@
 
 module PsEl.SExpOptimize where
 
+import Control.Lens (itoListOf)
 import Data.Functor.Foldable (cataA)
 import Data.Generics.Sum (_Ctor)
 import Data.Generics.Wrapped (_Unwrapped)
 import PsEl.SExp
-import PsEl.SExpTraverse (freeVars)
+import PsEl.SExpTraverse (Index (..), freeVars)
 import RIO
 import RIO.Map qualified as Map
 
@@ -86,3 +87,51 @@ removeRebindOnlyPcase (Pcase exps [PcaseAlt pats Nothing code])
                 & over freeVars symRewrite
                 & view _Unwrapped
 removeRebindOnlyPcase s = s
+
+-- 自己再帰関数の最適化
+-- ただし最適化可能なケース全てに於いて最適化を実行できるわけではない。
+-- 差し当り自明なケースのみ最適化を実行する。
+--
+-- sym 現在最適化対象の識別子
+-- args は少なくとも一つ以上持つとする
+-- body は関数の中身
+--
+selfRecursiveTCO :: Symbol -> [Symbol] -> SExp -> Maybe (OptimizeM SExp)
+selfRecursiveTCO sym args body = do
+    let argLen = length args
+    let calls = filter ((== sym) . snd) $ itoListOf freeVars body
+    if all (isTC argLen . fst) calls
+        then Just performTCO
+        else Nothing
+  where
+    -- 末尾呼出しかを判定。
+    -- 必要な呼出し回数が第一引数で渡される。
+    --
+    -- (a)
+    -- 呼出し途中にある識別子に束縛された場合。現在は単に末尾呼出しされていないとしているが,
+    -- その識別子が(元bodyから見て)末尾呼出しされている場合は最適化可能なケースが存在する。
+    -- 実際JSバックエンドはそこまで最適化している。
+    --
+    -- (b)
+    -- 引数位置にあったとしても最適化可能なケースは存在するが解析が難しいため現在はしない。
+    --
+    -- (c)
+    -- 本来必要な引数の数を超えて呼び出されるケースは存在する。
+    -- 例えば foo :: Int -> Int -> Int という型でも実装が foo i = if ... (\j -> i + j)
+    -- のような形であった場合, 元の args引数の長さは1になる。
+    isTC :: Int -> [Index] -> Bool
+    isTC i [] = i == 0
+    isTC i (ix : ixs) = case ix of
+        ILambda1 -> isTC (i + 1) ixs
+        IBind _ -> False -- (a)
+        IArg -> False -- (b)
+        ICond -> False
+        IBody1 -> isTC i ixs
+        IFunCall1
+            | i > 0 -> isTC (i - 1) ixs
+            | otherwise -> False -- (c)
+
+    -- TODO
+    performTCO :: OptimizeM SExp
+    performTCO = do
+        pure body
