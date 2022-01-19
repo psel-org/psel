@@ -92,7 +92,7 @@ data PPattern e
     deriving (Functor, Foldable, Traversable, Generic)
 
 -- Unsafe prefixは任意のテキストが妥当なelispシンボルにならないことを示している。
-newtype Symbol = UnsafeSymbol Text
+newtype Symbol = UnsafeSymbol {symbolText :: Text}
     deriving (Eq, Ord, IsString)
 
 integer :: Integer -> SExp

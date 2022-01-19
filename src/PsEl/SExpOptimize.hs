@@ -15,9 +15,17 @@ import PsEl.SExp
 import PsEl.SExpTraverse (Index (..), freeVars)
 import RIO
 import RIO.Map qualified as Map
+import RIO.State (State, evalState, get, put)
 
-newtype OptimizeM a = Optimize {runOptimize :: Identity a}
+newtype OptimizeM a = OptimizeM {runOptimize :: State Int a}
     deriving (Functor, Applicative, Monad)
+
+-- PSが $ prefixの変数を使わない,という前提
+mkUniqVar :: Text -> OptimizeM Symbol
+mkUniqVar base = OptimizeM $ do
+    i <- get
+    put $ i + 1
+    pure $ UnsafeSymbol $ "$" <> base <> "-" <> textDisplay i
 
 optimize :: Feature -> Feature
 optimize f@Feature{defVars} =
@@ -30,7 +38,7 @@ optimize f@Feature{defVars} =
 
 optimizeSExp :: SExp -> SExp
 optimizeSExp sexp =
-    runIdentity . runOptimize $ cataA optimize' sexp
+    flip evalState 0 . runOptimize $ cataA optimize' sexp
   where
     optimize' :: SExpF (OptimizeM SExp) -> OptimizeM SExp
     optimize' s = do
@@ -91,6 +99,8 @@ removeRebindOnlyPcase s = s
 -- 自己再帰関数の最適化
 -- ただし最適化可能なケース全てに於いて最適化を実行できるわけではない。
 -- 差し当り自明なケースのみ最適化を実行する。
+-- トップダウンに適用する必要あり。whileループに変換すると
+-- 変換後のコードでは末尾呼出し検出がtrue/negativeになってしまう。
 --
 -- sym 現在最適化対象の識別子
 -- args は少なくとも一つ以上持つとする
@@ -100,7 +110,7 @@ selfRecursiveTCO :: Symbol -> [Symbol] -> SExp -> Maybe (OptimizeM SExp)
 selfRecursiveTCO sym args body = do
     let argLen = length args
     let calls = filter ((== sym) . snd) $ itoListOf freeVars body
-    if all (isTC argLen . fst) calls
+    if not (null calls) && all (isTC argLen . fst) calls
         then Just performTCO
         else Nothing
   where
@@ -131,7 +141,62 @@ selfRecursiveTCO sym args body = do
             | i > 0 -> isTC (i - 1) ixs
             | otherwise -> False -- (c)
 
-    -- TODO
+    -- 例えば次の関数が最適化対象とする。
+    --
+    --  (lambda (i)
+    --    (lambda (j)
+    --      <..body..>))
+    --
+    -- 次のようにwhile文を使ったループに変更する。
+    -- 生成変数($ prefix)は一意性を持つよう被らないsuffixを付ける。
+    -- <..body'..> は <..body..>内の再帰呼出しを $loop-fn に置き換えたもの。
+    -- 現状再帰呼出し関数をshadowすれば置き換えは不要だが,
+    -- 将来的に部分的に置き換えの必要が発生した場合も考えて全て置き換えておく。
+    --
+    --  (lambda (i)
+    --    (lambda (j)
+    --      (let* (($sentinel (make-symbol ""))  ;; uniq symbol
+    --             ($result $do-loop)
+    --             ($loop-fn (lambda (_i)
+    --                         (lambda (_j)
+    --                           (setq i _i i _j)
+    --                           $sentinel))))
+    --        (while (eq $result $sentinel)
+    --          (setq $result <..body'..>))
+    --        $result)))
+    --
     performTCO :: OptimizeM SExp
     performTCO = do
-        pure body
+        varSentinel <- mkUniqVar "sentinel"
+        varResult <- mkUniqVar "result"
+        varLoopFn <- mkUniqVar $ symbolText sym
+        args' <- traverse (mkUniqVar . symbolText) args
+        let symReqrite sym' = if sym' == sym then varLoopFn else sym'
+        let body' = body & over freeVars symReqrite
+        pure $
+            letStar
+                [ (varSentinel, funcallNative "make-symbol" [string ""])
+                , (varResult, symbol varSentinel)
+                ,
+                    ( varLoopFn
+                    , foldr
+                        lambda1
+                        ( progn2
+                            (funcallNative "setq" (zipWith (\a a' -> [symbol a, symbol a']) args args' & mconcat))
+                            (symbol varSentinel)
+                        )
+                        args
+                    )
+                ]
+                ( progn2
+                    ( funcallNative
+                        "while"
+                        [ funcallNative "eq" [symbol varResult, symbol varSentinel]
+                        , funcallNative "setq" [symbol varResult, body']
+                        ]
+                    )
+                    (symbol varResult)
+                )
+      where
+        -- TODO: Replace with proper SExp constructor
+        progn2 e0 e1 = funcallNative "progn" [e0, e1]
