@@ -61,14 +61,15 @@ optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
     applyTCO :: SExp -> OptimizeM SExp
     applyTCO = para applyTCO'
 
+    -- only letrec names are possibily self-resursive
     applyTCO' :: SExpF (SExp, OptimizeM SExp) -> OptimizeM SExp
-    applyTCO' (Let letType binds body) = do
+    applyTCO' (Let LetRec binds body) = do
         binds' <- for binds $ \(name, (orig, sexp)) ->
             (name,) <$> case applyTCOToName name orig of
                 Nothing -> sexp
                 Just om -> applyTCO =<< om
         body' <- snd body
-        pure . SExp $ Let letType binds' body'
+        pure . SExp $ Let LetRec binds' body'
     applyTCO' sexp =
         SExp <$> mapM snd sexp
 
