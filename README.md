@@ -61,6 +61,19 @@ Records | alist (e.g. `(('foo . 1) ('bar . "a"))`)
 Unit | nil
 Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. (e.g. `Just 42` -> `['Just 42]`)
 
+## Optimization
+
+### TCO
+
+Currently, TCO is only applied to only certain forms of self-recursion functions.
+TCO will convert these self-recursion functions to a s-exp while expression.
+
+### Special treatment for Effect type
+
+Not done yet.
+reference
+https://github.com/purescript/purescript-effect#the-effect-type-is-magic
+
 ## TODO
 
 * [x] Support FFI
