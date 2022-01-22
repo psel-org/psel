@@ -81,12 +81,6 @@ Not done yet.
 
 `Data.Function.Uncurried(funcitons package)` and `Effect.Uncurried(effects pacakge)`
 
-### Remove Partial/unsafePartial from generated code
-
-Not done yet.
-
-`Partial` and `unsafePartial` is solely for compile time
-
 ## TODO
 
 * [x] Support FFI
