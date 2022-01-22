@@ -195,13 +195,13 @@ selfRecursiveTCO sym (args, body) = do
     --
     --  (lambda (i)
     --    (lambda (j)
-    --      (let* (($sentinel (make-symbol ""))  ;; uniq symbol
+    --      (let* (($continue (make-symbol ""))  ;; uniq symbol
     --             ($result $do-loop)
     --             ($loop-fn (lambda (_i)
     --                         (lambda (_j)
     --                           (setq i _i i _j)
-    --                           $sentinel))))
-    --        (while (eq $result $sentinel)
+    --                           $continue))))
+    --        (while (eq $result $continue)
     --          (setq $result <..body'..>))
     --        $result)))
     --
