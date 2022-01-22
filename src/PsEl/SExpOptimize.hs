@@ -129,11 +129,9 @@ removeRebindOnlyPcase :: SExpF SExp -> SExpF SExp
 removeRebindOnlyPcase (Pcase exps [PcaseAlt pats Nothing code])
     | Just expsSyms <- traverse (^? _Unwrapped . _Ctor @"Symbol") exps
       , Just patsSyms <- traverse (^? _Ctor @"PBind") pats =
-        let symMap = Map.fromList $ zip patsSyms expsSyms
-            symRewrite sym = fromMaybe sym $ Map.lookup sym symMap
-         in code
-                & over freeVars symRewrite
-                & view _Unwrapped
+        code
+            & over freeVars (symbolsRewrite (zip patsSyms expsSyms))
+            & view _Unwrapped
 removeRebindOnlyPcase s = s
 
 -- 自己再帰関数の最適化
@@ -189,17 +187,23 @@ selfRecursiveTCO sym (args, body) = do
     --
     -- 次のようにwhile文を使ったループに変更する。
     -- 生成変数($ prefix)は一意性を持つよう被らないsuffixを付ける。
-    -- <..body'..> は <..body..>内の再帰呼出しを $loop-fn に置き換えたもの。
+    -- <..body'..> は <..body..>内の再帰呼出しを $loop-fn に置き換え,
+    -- lambda引数をローカルの物に置き換えたもの。
     -- 現状再帰呼出し関数をshadowすれば置き換えは不要だが,
     -- 将来的に部分的に置き換えの必要が発生した場合も考えて全て置き換えておく。
+    -- lambda引数をローカルに置き換える(下の例だと $i, $j)のは,
+    -- 関数ば部分適用された場合,lambda引数を直でsetqすると呼出し間でその
+    -- 変更が共有されてしまうため。
     --
     --  (lambda (i)
     --    (lambda (j)
-    --      (let* (($continue (make-symbol ""))  ;; uniq symbol
+    --      (let* (($i i)
+    --             ($j j)
+    --             ($continue (make-symbol ""))  ;; uniq symbol
     --             ($result $do-loop)
     --             ($loop-fn (lambda (_i)
     --                         (lambda (_j)
-    --                           (setq i _i i _j)
+    --                           (setq $i _i $j _j)
     --                           $continue))))
     --        (while (eq $result $continue)
     --          (setq $result <..body'..>))
@@ -210,11 +214,11 @@ selfRecursiveTCO sym (args, body) = do
         varContinue <- mkUniqVar "continue"
         varResult <- mkUniqVar "result"
         varLoopFn <- mkUniqVar $ symbolText sym
-        args' <- traverse (mkUniqVar . symbolText) args
-        let symReqrite sym' = if sym' == sym then varLoopFn else sym'
-        let body' = body & over freeVars symReqrite
-        pure $
-            letStar
+        argsLocal <- traverse (mkUniqVar . symbolText) args
+        argsTmp <- traverse (mkUniqVar . symbolText) args
+        let bindLocalVars =
+                zipWith (curry (fmap symbol)) argsLocal args
+        let bindSpecialVars =
                 [ (varContinue, funcallNative "make-symbol" [string ""])
                 , (varResult, symbol varContinue)
                 ,
@@ -222,12 +226,17 @@ selfRecursiveTCO sym (args, body) = do
                     , foldr
                         lambda1
                         ( progn2
-                            (funcallNative "setq" (zipWith (\a a' -> [symbol a, symbol a']) args args' & mconcat))
+                            (funcallNative "setq" (zipWith (\a a' -> [symbol a, symbol a']) argsLocal argsTmp & mconcat))
                             (symbol varContinue)
                         )
-                        args'
+                        argsTmp
                     )
                 ]
+        let body' =
+                body & over freeVars (symbolsRewrite ((sym, varLoopFn) : zip args argsLocal))
+        pure $
+            letStar
+                (bindLocalVars <> bindSpecialVars)
                 ( progn2
                     ( funcallNative
                         "while"
@@ -240,3 +249,8 @@ selfRecursiveTCO sym (args, body) = do
       where
         -- TODO: Replace with proper SExp constructor
         progn2 e0 e1 = funcallNative "progn" [e0, e1]
+
+symbolsRewrite :: [(Symbol, Symbol)] -> Symbol -> Symbol
+symbolsRewrite symPairs =
+    let symMap = Map.fromList symPairs
+     in \sym -> fromMaybe sym (Map.lookup sym symMap)
