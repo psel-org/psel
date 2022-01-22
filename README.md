@@ -71,8 +71,15 @@ TCO will convert these self-resursive calls to a s-exp while expression.
 ### Special treatment for Effect type
 
 Not done yet.
+
 reference
 https://github.com/purescript/purescript-effect#the-effect-type-is-magic
+
+### Special treatment for Uncurried types
+
+Not done yet.
+
+`Data.Function.Uncurried(funcitons package)` and `Effect.Uncurried(effects pacakge)`
 
 ## TODO
 
