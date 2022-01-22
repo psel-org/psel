@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module PsEl.SExpOptimize where
@@ -14,6 +16,7 @@ import Data.Generics.Wrapped (_Unwrapped)
 import PsEl.SExp
 import PsEl.SExpTraverse (Index (..), freeVars)
 import RIO
+import RIO.Lens (_1)
 import RIO.Map qualified as Map
 import RIO.State (State, evalState, get, put)
 
@@ -32,14 +35,21 @@ optimize f@Feature{defVars} =
     f
         { defVars =
             map
-                (\dv@DefVar{definition} -> dv{definition = optimizeSExp definition})
+                (\dv -> dv{definition = optimizeDefVar dv})
                 defVars
         }
 
-optimizeSExp :: SExp -> SExp
-optimizeSExp sexp =
-    flip evalState 0 . runOptimize $ cataA optimize' sexp
+optimizeDefVar :: DefVar -> SExp
+optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
+    def' <- cataA optimize' definition
+    def' <- case toLambdas def' of
+        ([], _) ->
+            pure def'
+        lambdas ->
+            maybe (pure def') (fmap fromLambdas) (selfRecursiveTCO name lambdas)
+    pure def'
   where
+    -- Symbol -> [Symbol] -> SExp -> Maybe (OptimizeM SExp)
     optimize' :: SExpF (OptimizeM SExp) -> OptimizeM SExp
     optimize' s = do
         s <- sequence s
@@ -47,6 +57,13 @@ optimizeSExp sexp =
             . SExp
             . removeRebindOnlyPcase
             $ replacePcaseToIf s
+
+    toLambdas :: SExp -> ([Symbol], SExp)
+    toLambdas (SExp (Lambda1 sym sexp)) = over _1 (sym :) $ toLambdas sexp
+    toLambdas sexp = ([], sexp)
+
+    fromLambdas :: ([Symbol], SExp) -> SExp
+    fromLambdas (args, body) = foldr lambda1 body args
 
 -- PSでif文を使うとcorefnではcaseに変換される。素直にそのままコード生成すると例
 -- えばのようになる。
@@ -106,12 +123,12 @@ removeRebindOnlyPcase s = s
 -- args は少なくとも一つ以上持つとする
 -- body は関数の中身
 --
-selfRecursiveTCO :: Symbol -> [Symbol] -> SExp -> Maybe (OptimizeM SExp)
-selfRecursiveTCO sym args body = do
+selfRecursiveTCO :: Symbol -> ([Symbol], SExp) -> Maybe (OptimizeM ([Symbol], SExp))
+selfRecursiveTCO sym (args, body) = do
     let argLen = length args
     let calls = filter ((== sym) . snd) $ itoListOf freeVars body
     if not (null calls) && all (isTC argLen . fst) calls
-        then Just performTCO
+        then Just $ (args,) <$> performTCO
         else Nothing
   where
     -- 末尾呼出しかを判定。
@@ -185,7 +202,7 @@ selfRecursiveTCO sym args body = do
                             (funcallNative "setq" (zipWith (\a a' -> [symbol a, symbol a']) args args' & mconcat))
                             (symbol varSentinel)
                         )
-                        args
+                        args'
                     )
                 ]
                 ( progn2

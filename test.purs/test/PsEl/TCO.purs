@@ -4,12 +4,13 @@ import Test.Utils
 
 testTCO :: {} -> Array Boolean
 testTCO _ =
-  [ assertEqual "self recursion 10" (selfRec1 0 10) 1
-  -- , assertEqual "self recursion 100" (selfRec1 0 100) 1
-  -- , assertEqual "self recursion 1000" (selfRec1 0 1000) 1
-  , assertEqual "self recursion(2) 10" ((selfRec2 0 10) {}) 1
+  [ assertEqual "self recursion(1-1) 10" (selfRec1 0 10) 1
+  , assertEqual "self recursion(1-2) 10000" (selfRec1 0 10000) 1
+  , assertEqual "self recursion(2-1) 10" ((selfRec2 0 10) {}) 1
+  , assertEqual "self recursion(2-2) 10000" ((selfRec2 0 10000) {}) 1
   , assertEqual "self recursion(3) 20" (selfRec3 0 20) 2
-  , assertEqual "self recursion(4) 10" (selfRec4 0 10) 1
+  , assertEqual "self recursion(4-1) 10" (selfRec4 0 10) 1
+  -- , assertEqual "self recursion(4-2) 10000" (selfRec4 0 10000) 1
   , assertEqual "self recursion(5) 10" (selfRec5 0 10) 1
   , assertEqual "self recursion(6) 10" (selfRec6 0 10) 1
   ]
