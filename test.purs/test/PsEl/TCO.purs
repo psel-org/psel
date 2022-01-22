@@ -17,6 +17,10 @@ testTCO _ =
   -- , assertEqual "self recursion(6-2) 10000" (selfRec6 0 10000) 1
   , assertEqual "self recursion(7-1) 10" (selfRec7 0 10) 1
   , assertEqual "self recursion(7-2) 10000" (selfRec7 0 10000) 1
+  , assertEqual "self recursion(8-1) 10" (selfRec8 10) 1
+  , assertEqual "self recursion(8-2) 10" (selfRec8 10000) 1
+    -- to check partial applied i is not changed
+  , assertEqual "self recursion(8-3) 10" (selfRec8 10) 1
   ]
 
 selfRec1 :: Int -> Int -> Int
@@ -75,5 +79,14 @@ selfRec7 i to = go i to
     go i to
       | eqInt i to = 1
       | true = go (succInt i) to
+
+-- ローカルな自己再帰関数(部分適用版)
+selfRec8 :: Int -> Int
+selfRec8 = go 0
+  where
+    go i to
+      | eqInt i to = 1
+      | true = go (succInt i) to
+
 
 -- 型クラス使って辞書受け取るバージョンも
