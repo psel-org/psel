@@ -11,8 +11,12 @@ testTCO _ =
   , assertEqual "self recursion(3) 20" (selfRec3 0 20) 2
   , assertEqual "self recursion(4-1) 10" (selfRec4 0 10) 1
   -- , assertEqual "self recursion(4-2) 10000" (selfRec4 0 10000) 1
-  , assertEqual "self recursion(5) 10" (selfRec5 0 10) 1
-  , assertEqual "self recursion(6) 10" (selfRec6 0 10) 1
+  , assertEqual "self recursion(5-1) 10" (selfRec5 0 10) 1
+  -- , assertEqual "self recursion(5-2) 10000" (selfRec5 0 10000) 1
+  , assertEqual "self recursion(6-1) 10" (selfRec6 0 10) 1
+  -- , assertEqual "self recursion(6-2) 10000" (selfRec6 0 10000) 1
+  , assertEqual "self recursion(7-1) 10" (selfRec7 0 10) 1
+  -- , assertEqual "self recursion(7-2) 10000" (selfRec7 0 10000) 1
   ]
 
 selfRec1 :: Int -> Int -> Int
@@ -63,5 +67,13 @@ selfRec6 i to
   | true =
     let f = selfRec6 (succInt i)
     in f to
+
+-- ローカルな自己再帰関数
+selfRec7 :: Int -> Int -> Int
+selfRec7 i to = go i to
+  where
+    go i to
+      | eqInt i to = 1
+      | true = go (succInt i) to
 
 -- 型クラス使って辞書受け取るバージョンも
