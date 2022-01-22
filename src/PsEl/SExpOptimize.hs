@@ -184,7 +184,7 @@ selfRecursiveTCO sym (args, body) = do
     --
     performTCO :: OptimizeM SExp
     performTCO = do
-        varSentinel <- mkUniqVar "sentinel"
+        varContinue <- mkUniqVar "continue"
         varResult <- mkUniqVar "result"
         varLoopFn <- mkUniqVar $ symbolText sym
         args' <- traverse (mkUniqVar . symbolText) args
@@ -192,15 +192,15 @@ selfRecursiveTCO sym (args, body) = do
         let body' = body & over freeVars symReqrite
         pure $
             letStar
-                [ (varSentinel, funcallNative "make-symbol" [string ""])
-                , (varResult, symbol varSentinel)
+                [ (varContinue, funcallNative "make-symbol" [string ""])
+                , (varResult, symbol varContinue)
                 ,
                     ( varLoopFn
                     , foldr
                         lambda1
                         ( progn2
                             (funcallNative "setq" (zipWith (\a a' -> [symbol a, symbol a']) args args' & mconcat))
-                            (symbol varSentinel)
+                            (symbol varContinue)
                         )
                         args'
                     )
@@ -208,7 +208,7 @@ selfRecursiveTCO sym (args, body) = do
                 ( progn2
                     ( funcallNative
                         "while"
-                        [ funcallNative "eq" [symbol varResult, symbol varSentinel]
+                        [ funcallNative "eq" [symbol varResult, symbol varContinue]
                         , funcallNative "setq" [symbol varResult, body']
                         ]
                     )
