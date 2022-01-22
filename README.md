@@ -63,10 +63,10 @@ Data types | Vector with constructor tag symbol in first slot and arguments in t
 
 ## Optimization
 
-### TCO
+### TCO(Tail-Call Optimization)
 
 Currently, TCO is only applied to only certain forms of self-recursion functions.
-TCO will convert these self-recursion functions to a s-exp while expression.
+TCO will convert these self-resursive calls to a s-exp while expression.
 
 ### Special treatment for Effect type
 
