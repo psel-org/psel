@@ -16,7 +16,7 @@ testTCO _ =
   , assertEqual "self recursion(6-1) 10" (selfRec6 0 10) 1
   -- , assertEqual "self recursion(6-2) 10000" (selfRec6 0 10000) 1
   , assertEqual "self recursion(7-1) 10" (selfRec7 0 10) 1
-  -- , assertEqual "self recursion(7-2) 10000" (selfRec7 0 10000) 1
+  , assertEqual "self recursion(7-2) 10000" (selfRec7 0 10000) 1
   ]
 
 selfRec1 :: Int -> Int -> Int

@@ -10,7 +10,7 @@
 module PsEl.SExpOptimize where
 
 import Control.Lens (itoListOf)
-import Data.Functor.Foldable (cataA)
+import Data.Functor.Foldable (Recursive (para), cataA)
 import Data.Generics.Sum (_Ctor)
 import Data.Generics.Wrapped (_Unwrapped)
 import PsEl.SExp
@@ -41,15 +41,10 @@ optimize f@Feature{defVars} =
 
 optimizeDefVar :: DefVar -> SExp
 optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
-    def' <- cataA optimize' definition
-    def' <- case toLambdas def' of
-        ([], _) ->
-            pure def'
-        lambdas ->
-            maybe (pure def') (fmap fromLambdas) (selfRecursiveTCO name lambdas)
-    pure def'
+    cataA optimize' definition
+        >>= applyTopLevelTCO name
+        >>= applyTCO
   where
-    -- Symbol -> [Symbol] -> SExp -> Maybe (OptimizeM SExp)
     optimize' :: SExpF (OptimizeM SExp) -> OptimizeM SExp
     optimize' s = do
         s <- sequence s
@@ -57,6 +52,33 @@ optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
             . SExp
             . removeRebindOnlyPcase
             $ replacePcaseToIf s
+
+    applyTopLevelTCO :: Symbol -> SExp -> OptimizeM SExp
+    applyTopLevelTCO name sexp =
+        fromMaybe (pure sexp) $ applyTCOToName name sexp
+
+    -- top-downに適用する必要あり
+    applyTCO :: SExp -> OptimizeM SExp
+    applyTCO = para applyTCO'
+
+    applyTCO' :: SExpF (SExp, OptimizeM SExp) -> OptimizeM SExp
+    applyTCO' (Let letType binds body) = do
+        binds' <- for binds $ \(name, (orig, sexp)) ->
+            (name,) <$> case applyTCOToName name orig of
+                Nothing -> sexp
+                Just om -> applyTCO =<< om
+        body' <- snd body
+        pure . SExp $ Let letType binds' body'
+    applyTCO' sexp =
+        SExp <$> mapM snd sexp
+
+    applyTCOToName :: Symbol -> SExp -> Maybe (OptimizeM SExp)
+    applyTCOToName name sexp =
+        case toLambdas sexp of
+            ([], _) ->
+                Nothing
+            lambdas ->
+                fmap (fmap fromLambdas) (selfRecursiveTCO name lambdas)
 
     toLambdas :: SExp -> ([Symbol], SExp)
     toLambdas (SExp (Lambda1 sym sexp)) = over _1 (sym :) $ toLambdas sexp
