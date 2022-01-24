@@ -4,9 +4,10 @@ WIP
 
 ## Motivation
 
-For those who want to extend Emacs with PureScript instead of Elisp.
-Nothing wrong with Elisp, but some prefers statically-typed languages over dynamically-typed languages.
-However, since the generated elisp is non-human-friendly, it is not intended to register the generated elisp as an Elisp package to registries like MELPA.
+For those who wants to extend Emacs with PureScript.
+Elisp is powerful and flexible, but when it comes to complex logic code, some might prefer strongly typed language.
+Since it is possible to call PS functions from elisp, it is possible to write partially in PS.
+Also, you can reuse PureScript libraries as long as they do not depend on JS/browser specific libraries.
 
 ## Installation
 
