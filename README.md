@@ -73,8 +73,8 @@ Not done yet.
 
 ### TCO(Tail-Call Optimization)
 
-Currently, TCO is only applied to only certain forms of self-recursion functions.
-TCO will convert these self-resursive calls to a s-exp while expression.
+Currently, TCO is only applied to certain forms of self-recursion functions.
+TCO will convert these self-resursive calls to `while` s-exp expression.
 
 ### MagicDo
 
