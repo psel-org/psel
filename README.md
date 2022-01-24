@@ -32,7 +32,7 @@ Psel is intended to use through Spago. Set `backend = "psel"` in your `spago.dha
 There is no package-set release yet. You can use WIP package-set `https://raw.githubusercontent.com/psel-org/package-sets/main/src/el-0.14.5-20211116/packages.dhall` for now.
 
 ```dhall
-{ name = "foo"
+{ name = "your-project-name"
 , dependencies = [ "prelude" ]
 , packages = https://raw.githubusercontent.com/psel-org/package-sets/main/src/el-0.14.5-20211116/packages.dhall
 , backend = "psel"
@@ -61,6 +61,14 @@ Records | alist (e.g. `(('foo . 1) ('bar . "a"))`)
 Unit | nil
 Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. (e.g. `Just 42` -> `['Just 42]`)
 
+## Types with special treatment
+
+### Uncurried types
+
+Not done yet.
+
+`Data.Function.Uncurried(funcitons package)` and `Effect.Uncurried(effects pacakge)`
+
 ## Optimization
 
 ### TCO(Tail-Call Optimization)
@@ -68,18 +76,12 @@ Data types | Vector with constructor tag symbol in first slot and arguments in t
 Currently, TCO is only applied to only certain forms of self-recursion functions.
 TCO will convert these self-resursive calls to a s-exp while expression.
 
-### Special treatment for Effect type
+### MagicDo
 
 Not done yet.
 
 reference
 https://github.com/purescript/purescript-effect#the-effect-type-is-magic
-
-### Special treatment for Uncurried types
-
-Not done yet.
-
-`Data.Function.Uncurried(funcitons package)` and `Effect.Uncurried(effects pacakge)`
 
 ## TODO
 
