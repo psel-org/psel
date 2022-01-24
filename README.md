@@ -4,7 +4,6 @@ WIP
 
 ## Motivation
 
-For those who wants to extend Emacs with PureScript.
 Elisp is powerful and flexible, but when it comes to complex logic code, some might prefer strongly typed language.
 Since it is possible to call PS functions from elisp, it is possible to write partially in PS.
 Also, you can reuse PureScript libraries as long as they do not depend on JS/browser specific libraries.
