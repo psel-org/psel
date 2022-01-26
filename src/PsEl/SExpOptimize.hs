@@ -174,7 +174,7 @@ selfRecursiveTCO sym (args, body) = do
         IBind _ -> False -- (a)
         IArg -> False -- (b)
         ICond -> False
-        IBody1 -> isTC i ixs
+        ITail -> isTC i ixs
         IFunCall1
             | i > 0 -> isTC (i - 1) ixs
             | otherwise -> False -- (c)
@@ -247,8 +247,7 @@ selfRecursiveTCO sym (args, body) = do
                     (symbol varResult)
                 )
       where
-        -- TODO: Replace with proper SExp constructor
-        progn2 e0 e1 = funcallNative "progn" [e0, e1]
+        progn2 e0 e1 = progn [e0, e1]
 
 symbolsRewrite :: [(Symbol, Symbol)] -> Symbol -> Symbol
 symbolsRewrite symPairs =

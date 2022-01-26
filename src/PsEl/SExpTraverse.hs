@@ -26,7 +26,7 @@ data Index
       -- e.g. (if <cond> ..), (cond (<cond> ..) (<cond> ...))
       ICond
     | -- 長さ一のボディ
-      IBody1
+      ITail
     | -- funcall1 の対象
       IFunCall1
 
@@ -57,7 +57,7 @@ freeVars p s = cata go s [] mempty
         let f vars (sym, val) = (Set.insert sym vars, (sym,) <$> val (IBind sym : ix) vars)
         let (vars', binds') = mapAccumL f vars binds
         binds'' <- sequenceA binds'
-        body' <- body (IBody1 : ix) vars'
+        body' <- body (ITail : ix) vars'
         pure $ SExp $ Let LetStar binds'' body'
 
     -- 束縛(letrec)
@@ -65,7 +65,7 @@ freeVars p s = cata go s [] mempty
         let vars' = foldr (Set.insert . fst) vars binds
         let f (sym, val) = (sym,) <$> val (IBind sym : ix) vars'
         binds' <- traverse f binds
-        body' <- body (IBody1 : ix) vars
+        body' <- body (ITail : ix) vars
         pure $ SExp $ Let LetRec binds' body'
 
     -- 束縛(pcase)
@@ -88,15 +88,15 @@ freeVars p s = cata go s [] mempty
     -- if
     go (If condE thenE elseE) ix vars = do
         condE' <- condE (ICond : ix) vars
-        thenE' <- thenE (IBody1 : ix) vars
-        elseE' <- elseE (IBody1 : ix) vars
+        thenE' <- thenE (ITail : ix) vars
+        elseE' <- elseE (ITail : ix) vars
         pure $ SExp $ If condE' thenE' elseE'
 
     -- cond
     go (Cond alts) ix vars = do
         let f (condE, bodyE) = do
                 condE' <- condE (ICond : ix) vars
-                bodyE' <- bodyE (IBody1 : ix) vars
+                bodyE' <- bodyE (ITail : ix) vars
                 pure (condE', bodyE')
         alts' <- traverse f alts
         pure $ SExp $ Cond alts'
@@ -105,6 +105,13 @@ freeVars p s = cata go s [] mempty
     go (MkAlist xs) ix vars = do
         xs' <- traverse (\(f, e) -> (f,) <$> e (IArg : ix) vars) xs
         pure $ SExp $ MkAlist xs'
+
+    -- progn
+    go (Progn xs) ix vars = do
+        let len = length xs
+        let addIndex i = if i == len then ITail else IArg
+        xs' <- traverse (\(i, e) -> e (addIndex i : ix) vars) $ zip [1 ..] xs
+        pure $ SExp $ Progn xs'
 
     -- その他(再帰しないもの)
     go s ix vars =
@@ -120,7 +127,7 @@ freeVars p s = cata go s [] mempty
          in PcaseAlt
                 <$> sequenceA patterns'
                 <*> traverse (\e -> e (ICond : ix) vars') guard
-                <*> code (IBody1 : ix) vars'
+                <*> code (ITail : ix) vars'
 
     ppattern ::
         [Index] ->

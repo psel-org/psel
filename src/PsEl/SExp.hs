@@ -42,6 +42,7 @@ data SExpF e
     | Character Char
     | Symbol Symbol
     | MkAlist [(Symbol, e)]
+    | Progn [e]
     | If e e e
     | Cond [(e, e)]
     | Let LetType [(Symbol, e)] e
@@ -109,6 +110,9 @@ character = SExp . Character
 
 symbol :: Symbol -> SExp
 symbol = SExp . Symbol
+
+progn :: [SExp] -> SExp
+progn = SExp . Progn
 
 quotedSymbol :: Symbol -> SExp
 quotedSymbol = SExp . QuotedSymbol

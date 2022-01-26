@@ -73,14 +73,28 @@ convSExp = cata conv
     conv (Character c) = Raw.character c
     conv (Symbol sym) = Raw.symbol sym
     conv (MkAlist xs) = convMkAlist xs
+    conv (Progn es) = convProgn es
     conv (If e et ee) = Raw.list [Raw.symbol "if", e, et, ee]
-    conv (Cond alts) = Raw.list $ Raw.symbol "cond" : map (\(p, e) -> Raw.list [p, e]) alts
+    conv (Cond alts) = Raw.list $ Raw.symbol "cond" : map (\(p, e) -> Raw.list (p : eraseProgn e)) alts
     conv (Let letType binds body) = convLetish letType binds body
     conv (Pcase exprs cases) = convPcase exprs cases
-    conv (Lambda1 arg body) = Raw.list [Raw.symbol "lambda", Raw.list [Raw.symbol arg], body]
+    conv (Lambda1 arg body) = Raw.list $ [Raw.symbol "lambda", Raw.list [Raw.symbol arg]] <> eraseProgn body
     conv (FunCall1 f arg) = Raw.list [Raw.symbol "funcall", f, arg]
     conv (FunCallNative sym args) = Raw.list $ Raw.symbol sym : args
     conv (QuotedSymbol qs) = Raw.quote $ Raw.symbol qs
+
+-- erase uneeded progns
+eraseProgn :: Raw.SExp -> [Raw.SExp]
+eraseProgn (Raw.SExp (Raw.Progn es)) = es
+eraseProgn e = [e]
+
+-- remvoe nested progns
+convProgn :: [Raw.SExp] -> Raw.SExp
+convProgn = Raw.progn . foldr go []
+  where
+    go :: Raw.SExp -> [Raw.SExp] -> [Raw.SExp]
+    go (Raw.SExp (Raw.Progn es)) = (es <>)
+    go e = (e :)
 
 convMkAlist :: [(Symbol, Raw.SExp)] -> Raw.SExp
 convMkAlist =
@@ -95,11 +109,11 @@ convMkAlist =
 -- Let系
 convLetish :: LetType -> [(Symbol, Raw.SExp)] -> Raw.SExp -> Raw.SExp
 convLetish letType binds body =
-    Raw.list
+    Raw.list $
         [ Raw.symbol name
         , Raw.list (map (\(s, e) -> Raw.list [Raw.symbol s, e]) binds)
-        , body
         ]
+            <> eraseProgn body
   where
     name = case letType of
         LetStar -> "let*"
@@ -123,10 +137,10 @@ convPcase exprs cases =
         ps -> PBackquotedList (map Right ps)
 
     caseAlt PcaseAlt{patterns, guard, code} =
-        Raw.list
+        Raw.list $
             [ pattern' (unifyPatterns patterns) & maybe id addGuard guard
-            , code
             ]
+                <> eraseProgn code
       where
         addGuard guard sexp =
             Raw.list [Raw.symbol "and", sexp, Raw.list [Raw.symbol "guard", guard]]
@@ -171,6 +185,7 @@ displaySExpFRaw (Raw.String t) = displayString t
 displaySExpFRaw (Raw.Character c) = "?" <> display c
 displaySExpFRaw (Raw.Symbol sym) = displaySymbol sym
 displaySExpFRaw (Raw.Cons car cdr) = paren [car <> " . " <> cdr]
+displaySExpFRaw (Raw.Progn es) = paren $ "progn" : es
 displaySExpFRaw (Raw.List xs) = paren xs
 displaySExpFRaw (Raw.Vector xs) = bracket xs
 displaySExpFRaw (Raw.Quote s) = "'" <> s

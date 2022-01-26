@@ -20,6 +20,7 @@ data SExpF e
     | Character Char
     | Symbol Symbol
     | Cons e e
+    | Progn [e]
     | List [e]
     | Vector [e]
     | Quote e
@@ -48,6 +49,9 @@ vector = SExp . Vector
 -- e.g. (car . cdr)
 cons :: SExp -> SExp -> SExp
 cons car cdr = SExp $ Cons car cdr
+
+progn :: [SExp] -> SExp
+progn = SExp . Progn
 
 list :: [SExp] -> SExp
 list = SExp . List
