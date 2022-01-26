@@ -7,7 +7,7 @@ import Data.Coerce (Coercible, coerce)
 import Language.PureScript.CST (ParserState (ParserState), lex, parseQualIdentP, runParser)
 import Language.PureScript.CST.Types (Ident (getIdent), QualifiedName (QualifiedName, qualModule, qualName))
 import Language.PureScript.Names (Ident (Ident))
-import PsEl.SExp (symbol)
+import PsEl.SExp (funcall0, symbol)
 import PsEl.SExpConstructor qualified as C
 import PsEl.SExpDisplay (displaySExp)
 import PsEl.Transpile qualified as Trp
@@ -37,7 +37,7 @@ run mainFunc = do
                             [ ["--batch"]
                             , ["--directory", "output.el"]
                             , ["--eval", showSExp $ C.require featureName]
-                            , ["--eval", showSExp $ C.funcall0 mainFuncSym]
+                            , ["--eval", showSExp $ funcall0 mainFuncSym]
                             ]
                 proc "emacs" args runProcess_
             Right _ ->

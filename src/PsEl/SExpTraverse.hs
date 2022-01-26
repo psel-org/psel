@@ -18,8 +18,10 @@ import RIO.Set qualified as Set
 -- その意味ではIArgとICondを分ける必要はないかな..
 data Index
     = ILambda1
+    | ILambda0
     | IBind Symbol
     | -- 引数部
+      -- progn の最後の式以外もargと見做す
       -- e.g. (pcase <args> ...), (alist <args>), (funcall x <arg>)
       IArg
     | -- 条件部
@@ -27,8 +29,9 @@ data Index
       ICond
     | -- 長さ一のボディ
       ITail
-    | -- funcall1 の対象
+    | -- funcall1(1引数呼出し)の対象
       IFunCall1
+    | IFunCall0
 
 -- | `Taversal' SExp Symbol` for free variables
 freeVars ::
@@ -51,6 +54,10 @@ freeVars p s = cata go s [] mempty
     go (Lambda1 sym body) ix vars = do
         body' <- body (ILambda1 : ix) (Set.insert sym vars)
         pure $ SExp $ Lambda1 sym body'
+
+    go (Lambda0 body) ix vars = do
+        body' <- body (ILambda0 : ix) vars
+        pure $ SExp $ Lambda0 body'
 
     -- 束縛(let*)
     go (Let LetStar binds body) ix vars = do
@@ -79,6 +86,10 @@ freeVars p s = cata go s [] mempty
         f' <- f (IFunCall1 : ix) vars
         arg' <- arg (IArg : ix) vars
         pure $ SExp $ FunCall1 f' arg'
+
+    go (FunCall0 f) ix vars = do
+        f' <- f (IFunCall0 : ix) vars
+        pure $ SExp $ FunCall0 f'
 
     -- 関数呼出し(ネイティブ)
     go (FunCallNative sym args) ix vars = do

@@ -134,6 +134,18 @@ removeRebindOnlyPcase (Pcase exps [PcaseAlt pats Nothing code])
             & view _Unwrapped
 removeRebindOnlyPcase s = s
 
+-- MagicDo
+--
+-- 参考までに pskt での実装方法
+-- https://github.com/csicar/pskt/blob/aa0d5df52e9579abd38061c6ab891489ebf295c4/src/CodeGen/MagicDo.hs#L45
+-- ASTの構造を書き換えるためTCOと同じくトップダウンに適用する必要あり。
+-- FunCall0 と Lambda0 が必要。
+magicDo :: SExp -> SExp
+magicDo = para go
+  where
+    go :: SExpF (SExp, SExp) -> SExp
+    go v = SExp $ snd <$> v
+
 -- 自己再帰関数の最適化
 -- ただし最適化可能なケース全てに於いて最適化を実行できるわけではない。
 -- 差し当り自明なケースのみ最適化を実行する。
@@ -153,7 +165,8 @@ selfRecursiveTCO sym (args, body) = do
         else Nothing
   where
     -- 末尾呼出しかを判定。
-    -- 必要な呼出し回数が第一引数で渡される。
+    -- 必要な1引数呼出し回数が第一引数で渡される。
+    -- 第二引数の[Index]は逆順であることに注意(内から外の順)。
     --
     -- (a)
     -- 呼出し途中にある識別子に束縛された場合。現在は単に末尾呼出しされていないとしているが,
@@ -167,10 +180,14 @@ selfRecursiveTCO sym (args, body) = do
     -- 本来必要な引数の数を超えて呼び出されるケースは存在する。
     -- 例えば foo :: Int -> Int -> Int という型でも実装が foo i = if ... (\j -> i + j)
     -- のような形であった場合, 元の args引数の長さは1になる。
+    --
+    -- ?? Lambda0/FunCall0 は直Falseにしなくても救済措置があるかも。
+    -- ただ実際に有り得るかは疑問。
     isTC :: Int -> [Index] -> Bool
     isTC i [] = i == 0
     isTC i (ix : ixs) = case ix of
         ILambda1 -> isTC (i + 1) ixs
+        ILambda0 -> False
         IBind _ -> False -- (a)
         IArg -> False -- (b)
         ICond -> False
@@ -178,6 +195,7 @@ selfRecursiveTCO sym (args, body) = do
         IFunCall1
             | i > 0 -> isTC (i - 1) ixs
             | otherwise -> False -- (c)
+        IFunCall0 -> False
 
     -- 例えば次の関数が最適化対象とする。
     --

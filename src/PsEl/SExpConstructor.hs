@@ -19,6 +19,3 @@ provide :: FeatureName -> SExp
 provide (FeatureName name) =
     funcallNative "provide" [quotedSymbol name]
 
-funcall0 :: SExp -> SExp
-funcall0 f =
-    funcallNative "funcall" [f]

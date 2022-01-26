@@ -79,7 +79,9 @@ convSExp = cata conv
     conv (Let letType binds body) = convLetish letType binds body
     conv (Pcase exprs cases) = convPcase exprs cases
     conv (Lambda1 arg body) = Raw.list $ [Raw.symbol "lambda", Raw.list [Raw.symbol arg]] <> eraseProgn body
+    conv (Lambda0 body) = Raw.list $ [Raw.symbol "lambda", Raw.list []] <> eraseProgn body
     conv (FunCall1 f arg) = Raw.list [Raw.symbol "funcall", f, arg]
+    conv (FunCall0 f) = Raw.list [Raw.symbol "funcall", f]
     conv (FunCallNative sym args) = Raw.list $ Raw.symbol sym : args
     conv (QuotedSymbol qs) = Raw.quote $ Raw.symbol qs
 

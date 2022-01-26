@@ -55,6 +55,8 @@ data SExpF e
       FunCallNative Symbol [e]
     | -- | e.g. 'foo
       QuotedSymbol Symbol
+    | Lambda0 e
+    | FunCall0 e
     deriving (Functor, Foldable, Traversable, Generic)
 
 data LetType
@@ -145,6 +147,12 @@ lambdaN args body =
 
 funcall1 :: SExp -> SExp -> SExp
 funcall1 f arg = SExp $ FunCall1 f arg
+
+lambda0 :: SExp -> SExp
+lambda0 = SExp . Lambda0
+
+funcall0 :: SExp -> SExp
+funcall0 = SExp . FunCall0
 
 funcallNative :: Symbol -> [SExp] -> SExp
 funcallNative f args = SExp $ FunCallNative f args
