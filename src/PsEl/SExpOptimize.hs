@@ -13,8 +13,11 @@ import Control.Lens (itoListOf)
 import Data.Functor.Foldable (Recursive (para), cataA)
 import Data.Generics.Sum (_Ctor)
 import Data.Generics.Wrapped (_Unwrapped)
+import Language.PureScript qualified as PS
 import PsEl.SExp
+import PsEl.SExpPattern qualified as P
 import PsEl.SExpTraverse (Index (..), freeVars)
+import PsEl.Transpile (globalVar)
 import RIO
 import RIO.Lens (_1)
 import RIO.Map qualified as Map
@@ -49,9 +52,10 @@ optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
     optimize' s = do
         s <- sequence s
         pure
-            . SExp
+            . removeDataFunctions
             . removeRebindOnlyPcase
-            $ replacePcaseToIf s
+            . replacePcaseToIf
+            $ SExp s
 
     applyTopLevelTCO :: Symbol -> SExp -> OptimizeM SExp
     applyTopLevelTCO name sexp =
@@ -98,12 +102,12 @@ optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
 -- (if (identity b) (let nil 1) (let nil 0))
 --
 -- そのため速度的な改善はそれほどでもない。
-replacePcaseToIf :: SExpF SExp -> SExpF SExp
+replacePcaseToIf :: SExp -> SExp
 replacePcaseToIf
-    ( Pcase
+    ( P.Pcase
             [e]
             [PcaseAlt [PPredBool b] Nothing thenE, PcaseAlt [PAny] Nothing elseE]
-        ) = If (bool (funcallNative "not" [e]) e b) thenE elseE
+        ) = if' (bool (funcallNative "not" [e]) e b) thenE elseE
 replacePcaseToIf s = s
 
 -- 変数のbindingのみ行なってる単一Altのpcase式の除去。
@@ -125,14 +129,36 @@ replacePcaseToIf s = s
 --
 -- pcaseは単に変数を再束縛しているだけであり,変数名を置き換えをすれば除去可能である。
 -- PSレベルで行なえる変換に思えるが,CoreFnデータ型ににcond(ifの連結)に相当するものがないからかな？
-removeRebindOnlyPcase :: SExpF SExp -> SExpF SExp
-removeRebindOnlyPcase (Pcase exps [PcaseAlt pats Nothing code])
+removeRebindOnlyPcase :: SExp -> SExp
+removeRebindOnlyPcase (P.Pcase exps [PcaseAlt pats Nothing code])
     | Just expsSyms <- traverse (^? _Unwrapped . _Ctor @"Symbol") exps
       , Just patsSyms <- traverse (^? _Ctor @"PBind") pats =
         code
             & over freeVars (symbolsRewrite (zip patsSyms expsSyms))
-            & view _Unwrapped
 removeRebindOnlyPcase s = s
+
+-- 不要な ($), (&) の除去
+-- ほぼ意味がなく結合優先度や適用順序を調整するために使われる。
+-- prelude の Data.Functinモジュールの apply($) 及び applyFlipped(&)である。
+--
+--   apply :: forall a b. (a -> b) -> a -> b
+--   apply f x = f x
+--
+-- (funcall apply <a->b>) -> <a->b>
+--
+--   applyFlipped :: forall a b. a -> (a -> b) -> b
+--   applyFlipped x f = f x
+--
+-- (funcall (funcall applyFlipped <a>) <a->b>)  ->  (funcall <a->b> <a>)
+removeDataFunctions :: SExp -> SExp
+removeDataFunctions (P.FunCall1 (P.Symbol f) a)
+    | f == globalVar moduleDataFunction (PS.Ident "apply") = a
+removeDataFunctions (P.FunCall1 (P.FunCall1 (P.Symbol f) a) ab)
+    | f == globalVar moduleDataFunction (PS.Ident "applyFlipped") = funcall1 ab a
+removeDataFunctions s = s
+
+moduleDataFunction :: PS.ModuleName
+moduleDataFunction = PS.ModuleName "Data.Function"
 
 -- MagicDo
 --

@@ -33,6 +33,7 @@ library
     PsEl.SExpConstructor
     PsEl.SExpDisplay
     PsEl.SExpOptimize
+    PsEl.SExpPattern
     PsEl.SExpRaw
     PsEl.SExpTraverse
     PsEl.Transpile

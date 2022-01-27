@@ -124,6 +124,9 @@ quotedSymbol = SExp . QuotedSymbol
 alist :: [(Symbol, SExp)] -> SExp
 alist = SExp . MkAlist
 
+if' :: SExp -> SExp -> SExp -> SExp
+if' c t e = SExp $ If c t e
+
 cond :: [(SExp, SExp)] -> SExp
 cond = SExp . Cond
 
