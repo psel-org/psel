@@ -17,7 +17,7 @@ import Language.PureScript qualified as PS
 import PsEl.SExp
 import PsEl.SExpPattern qualified as P
 import PsEl.SExpTraverse (Index (..), freeVars)
-import PsEl.Transpile (globalVar)
+import PsEl.Transpile (globalVar, localUnusedVar)
 import RIO
 import RIO.Lens (_1)
 import RIO.Map qualified as Map
@@ -52,6 +52,7 @@ optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
     optimize' s = do
         s <- sequence s
         pure
+            . magicDo
             . removeDataFunctions
             . removeRebindOnlyPcase
             . replacePcaseToIf
@@ -150,6 +151,8 @@ removeRebindOnlyPcase s = s
 --   applyFlipped x f = f x
 --
 -- (funcall (funcall applyFlipped <a>) <a->b>)  ->  (funcall <a->b> <a>)
+--
+-- ??? ModuleNameやIdentはLanguage.PureScript.Constants以下で定義されている？
 removeDataFunctions :: SExp -> SExp
 removeDataFunctions (P.FunCall1 (P.Symbol f) a)
     | f == globalVar moduleDataFunction (PS.Ident "apply") = a
@@ -164,13 +167,73 @@ moduleDataFunction = PS.ModuleName "Data.Function"
 --
 -- 参考までに pskt での実装方法
 -- https://github.com/csicar/pskt/blob/aa0d5df52e9579abd38061c6ab891489ebf295c4/src/CodeGen/MagicDo.hs#L45
--- ASTの構造を書き換えるためTCOと同じくトップダウンに適用する必要あり。
--- FunCall0 と Lambda0 が必要。
+-- fuse0 で (funcall0 (lambda0 ..) を除去しているので(多分)bottomupに適用しても問題ないはず。
+--
+--   bind :: forall a b. m a -> (a -> m b) -> m b
+--
+-- (funcall (funcall (funcall Control.Bind.bind Effect.bindEffect) <m a>) (lambda (arg) <m b>))
+--
+-- if arg is unused, then:
+--
+-- (lambda ()
+--   (funcall <m a>)
+--   (funcall <m b>))
+--
+-- or else:
+--
+-- (lambda ()
+--   (let* ((arg (funcall <m a>)))
+--     (funcall <m b>)))
+--
+-- 捨てられる場合
+--
+--  discard :: forall f b. Bind f => f a -> (a -> f b) -> f b
+--
+-- (funcall (funcall (funcall (funcall Control.Bind.discard Control.Bind.discardUnit) Effect.bindEffect) <m a>) (lambda (arg) <m b>))
+-- ->
+-- (lambda ()
+--   (funcall <m a>)
+--   (funcall <m b>))
+--
+-- pure
+--
+--   pure :: forall a. a -> f a
+--
+-- (funcall (funcall Control.Applicative.pure Effect.applicativeEffect) <v>)
+-- ->
+-- (lambda () v)
+--
+-- NOTE: psktと同様 while や untilもやるべきかな。
+-- あともう少しパターンマッチにしやすいよう Symbolの型変えるか？
 magicDo :: SExp -> SExp
-magicDo = para go
-  where
-    go :: SExpF (SExp, SExp) -> SExp
-    go v = SExp $ snd <$> v
+magicDo (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol bind) (P.Symbol bindEffect)) ma) (P.Lambda1 arg mb))
+    | bind == identBind && bindEffect == identBindEffect =
+        if arg == localUnusedVar
+            then lambda0 $ progn [fuse0 (funcall0 ma), fuse0 (funcall0 mb)]
+            else lambda0 $ letStar [(arg, fuse0 (funcall0 ma))] (fuse0 (funcall0 mb))
+magicDo (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol discard) (P.Symbol discardUnit)) (P.Symbol bindEffect)) ma) (P.Lambda1 _ mb))
+    | discard == identDiscard && discardUnit == identDiscardUnit && bindEffect == identBindEffect =
+        lambda0 $ progn [fuse0 (funcall0 ma), fuse0 (funcall0 mb)]
+magicDo (P.FunCall1 (P.FunCall1 (P.Symbol pure) (P.Symbol applicativeEffect)) v)
+    | pure == identPure && applicativeEffect == identApplicativeEffect =
+        lambda0 v
+magicDo s = s
+
+-- NOTE: (lambda0 (funcall0 ..)) もなくせるかと思うが多分そのようなケースは発生しない
+-- magicDo が cata で bottomup に適用されているので再帰除去は不要。
+fuse0 :: SExp -> SExp
+fuse0 (P.FunCall0 (P.Lambda0 a)) = a
+fuse0 s = s
+
+identBind = globalVar moduleControlBind (PS.Ident "bind")
+identPure = globalVar moduleControlApplicative (PS.Ident "pure")
+identDiscard = globalVar moduleControlBind (PS.Ident "discard")
+identDiscardUnit = globalVar moduleControlBind (PS.Ident "discardUnit")
+identBindEffect = globalVar moduleEffect (PS.Ident "bindEffect")
+identApplicativeEffect = globalVar moduleEffect (PS.Ident "applicativeEffect")
+moduleEffect = PS.ModuleName "Effect"
+moduleControlApplicative = PS.ModuleName "Control.Applicative"
+moduleControlBind = PS.ModuleName "Control.Bind"
 
 -- 自己再帰関数の最適化
 -- ただし最適化可能なケース全てに於いて最適化を実行できるわけではない。

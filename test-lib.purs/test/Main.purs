@@ -15,13 +15,23 @@ testApply :: Effect Unit
 testApply = do
   log "apply(1)"
   assertEqual
-    { actual: (+) 1 $ 1 + 1
+    { actual: (+) 1 $ 1
+    , expected: 2
+    }
+  log "apply(2)"
+  assertEqual
+    { actual: (+) 1 $ (+) 1 $ 1
     , expected: 3
     }
   log "applyFlipped(1)"
   assertEqual
     { actual: 1 # (+) 1
     , expected: 2
+    }
+  log "applyFlipped(2)"
+  assertEqual
+    { actual: 1 # (+) 1 # (+) 1
+    , expected: 3
     }
 
 testEffect :: Effect Unit

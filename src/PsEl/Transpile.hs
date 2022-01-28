@@ -103,6 +103,13 @@ localVar ident =
     t = _identToText ident
     constants = ["t", "nil"]
 
+-- bindで結果を使わない場合,$__unusedというローカル変数が割当てられる。
+-- 最適化の際に識別できるよう識別子として提供する。
+-- 本来であれば型によって表現されるべきである。
+-- 関連issueが作成されていた記憶がある。
+localUnusedVar :: Symbol
+localUnusedVar = mkSymbol "$__unused"
+
 -- グローバル変数の衝突に関しては,PSモジュールのprefix(e.g. Foo.Bar.foo)を使うので衝突は基本起こらない。
 globalVar :: ModuleName -> Ident -> Symbol
 globalVar (ModuleName mn) ident =
