@@ -1,4 +1,4 @@
-# psel: Elisp backend for PureScript
+# psel: Elisp(Emacs Lisp) backend for PureScript
 
 WIP
 
