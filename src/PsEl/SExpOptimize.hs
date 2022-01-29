@@ -10,7 +10,7 @@
 module PsEl.SExpOptimize where
 
 import Control.Lens (itoListOf)
-import Data.Functor.Foldable (Recursive (para), cataA)
+import Data.Functor.Foldable (Recursive (para), cata, cataA)
 import Data.Generics.Sum (_Ctor)
 import Data.Generics.Wrapped (_Unwrapped)
 import Language.PureScript qualified as PS
@@ -44,19 +44,19 @@ optimize f@Feature{defVars} =
 
 optimizeDefVar :: DefVar -> SExp
 optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
-    cataA optimize' definition
+    pure (applyRewrite definition)
         >>= applyTopLevelTCO name
         >>= applyTCO
   where
-    optimize' :: SExpF (OptimizeM SExp) -> OptimizeM SExp
-    optimize' s = do
-        s <- sequence s
-        pure
-            . magicDo
-            . removeDataFunctions
-            . removeRebindOnlyPcase
-            . replacePcaseToIf
-            $ SExp s
+    applyRewrite :: SExp -> SExp
+    applyRewrite =
+        cata
+            ( magicDo
+                . removeDataFunctions
+                . removeRebindOnlyPcase
+                . replacePcaseToIf
+                . SExp
+            )
 
     applyTopLevelTCO :: Symbol -> SExp -> OptimizeM SExp
     applyTopLevelTCO name sexp =
