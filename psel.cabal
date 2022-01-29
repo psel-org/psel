@@ -52,6 +52,7 @@ library
     , purescript          ^>=0.14.4
     , purescript-cst
     , recursion-schemes
+    , reflection
     , regex
     , rio
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -7,7 +8,8 @@
 
 module PsEl.Transpile where
 
-import Language.PureScript (Ident (..), ModuleName (ModuleName), ProperNameType (ConstructorName))
+import Data.Reflection (Given (given), give)
+import Language.PureScript (Ident (..), ModuleName (ModuleName), ProperName (ProperName), ProperNameType (ConstructorName, TypeName))
 import Language.PureScript qualified as P hiding (ProperName)
 import Language.PureScript.Constants.Prim qualified as C
 import Language.PureScript.CoreFn
@@ -20,6 +22,7 @@ import PsEl.SExpConstructor qualified as C
 import RIO
 import RIO.Lens
 import RIO.NonEmpty qualified as NonEmpty
+import RIO.NonEmpty.Partial qualified as NonEmptyPartial
 import RIO.Set qualified as Set
 import RIO.Text qualified as T
 import RIO.Text.Partial qualified as Partial
@@ -130,17 +133,24 @@ decl mn bind = map (uncurry decl') binds
     decl' ident e =
         DefVar
             { name = globalVar mn ident
-            , definition = expr e
+            , definition = give mn (expr e)
             }
     binds =
         case bind of
             NonRec _ ident expr -> [(ident, expr)]
             Rec bs -> map (over _1 snd) bs
 
+-- 現在処理中のモジュール名を返す。
+-- モジュール別の特殊対応が必要な場合に使う。
+-- 引数で渡す・readerモナド導入はかなり面倒なので reflectionライブラリを利用する。
+-- https://hackage.haskell.org/package/reflection-2.1.6/docs/Data-Reflection.html
+currentModuleName :: Given ModuleName => ModuleName
+currentModuleName = given
+
 -- | Expr
-expr :: Expr Ann -> SExp
+expr :: Given ModuleName => Expr Ann -> SExp
 expr (Literal _ lit) = literal lit
-expr (Constructor _ _tname cname ids) = constructor cname ids
+expr (Constructor _ tname cname ids) = constructor tname cname ids
 expr (Accessor _ ps e) = objectAccess ps (expr e)
 expr (ObjectUpdate _ e xs) = objectUpdate (map (over _2 expr) xs) (expr e)
 expr (Abs _ id e) = lambda1 (localVar id) (expr e)
@@ -157,7 +167,7 @@ expr (Let _ binds e) = let' binds (expr e)
 --   the result of evaluating it is the same vector. This does not evaluate or
 --   even examine the elements of the vector.
 --
-literal :: Literal (Expr Ann) -> SExp
+literal :: Given ModuleName => Literal (Expr Ann) -> SExp
 literal (NumericLiteral (Left i)) = integer i
 literal (NumericLiteral (Right d)) = double d
 literal (StringLiteral ps) = string $ psstring ps
@@ -181,7 +191,7 @@ var v@(Qualified mn id)
 -- 全部 letrec で束縛してしまうのが多分正解かな？
 -- ただ殆どのケースで let* (頑張れば let)で十分なのに letrec は微妙か？
 -- NonRec のみなら let*,一つでも Rec があれば letrec でいいかな。
-let' :: [Bind Ann] -> SExp -> SExp
+let' :: Given ModuleName => [Bind Ann] -> SExp -> SExp
 let' binds = letC bindS
   where
     ext :: Bind a -> [((Ident, Expr a), Bool)]
@@ -205,7 +215,7 @@ let' binds = letC bindS
 -- 対象がリストなのはカンマ区切りで複数対象を指定できるので(e.g. case a, b of)
 -- 各CaseAlternativeは同じ数だけのbinderが必要。
 -- 複数指定の場合はリストに包んでpcaseに適用させる。(e.g. (pcase (list a b) ..))
-case' :: [SExp] -> [CaseAlternative Ann] -> SExp
+case' :: Given ModuleName => [SExp] -> [CaseAlternative Ann] -> SExp
 case' ss cas = pcase ss cases
   where
     -- マッチング節が一つしかなくガード節を使っている場合は cond が利用できる。
@@ -242,17 +252,31 @@ case' ss cas = pcase ss cases
                 , code = expr ex
                 }
 
+    -- (1)
     -- newtypeのマッチングの場合はConstructorBindersが呼ばれる。
     -- 当然newtypeなので下の値がそのまま入っているサブbinderは一つのはず。
     -- Annのメタ情報を見る必要がある。
+    --
+    -- (2)
+    -- QualifiedのmnはMaybe ModuleNameである。
+    -- どのようなケースでNothingとなるのか？
     binder :: Binder Ann -> PPattern SExp
-    binder (NullBinder _) = PAny
-    binder (LiteralBinder _ lit) = literalBinder lit
-    binder (VarBinder _ id) = PBind $ localVar id
-    binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ [b]) = binder b
-    binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ _bs) = error "Unexpected binding"
-    binder (ConstructorBinder _ _ (Qualified _ cname) bs) = constructorBinder cname (map binder bs)
-    binder (NamedBinder _ id b) = PAnd [PBind (localVar id), binder b]
+    binder (NullBinder _) =
+        PAny
+    binder (LiteralBinder _ lit) =
+        literalBinder lit
+    binder (VarBinder _ id) =
+        PBind $ localVar id
+    binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ [b]) =
+        binder b -- (1)
+    binder (ConstructorBinder (_, _, _, Just IsNewtype) _ _ _bs) =
+        error "Unexpected binding"
+    binder (ConstructorBinder _ (Qualified (Just mn) tname) (Qualified _ cname) bs) =
+        constructorBinder mn tname cname (map binder bs)
+    binder (ConstructorBinder _ (Qualified Nothing tname) (Qualified _ cname) bs) =
+        error "Unexpected binding" -- (2)
+    binder (NamedBinder _ id b) =
+        PAnd [PBind (localVar id), binder b]
 
     -- boolean binder と object binder がやっかい。
     -- boolean binder だからといって単に t, nil というシンボル使っても意味がない
@@ -276,12 +300,46 @@ case' ss cas = pcase ss cases
 
 -- | DataType
 
--- data型によるコンストラクタ(newtype のコンスラクタははidentity関数にbindされる)。
--- top-level の bind でしか表われない。
--- 引数を取りelispにおけるデータ型に変換する
+-- データ型は先頭にタグの入ったベクターで表現する。
+--
 -- e.g. Foo 1 2 -> ['Foo 1 2]
-constructor :: ProperName 'ConstructorName -> [Ident] -> SExp
-constructor cname ids =
+-- e.g. Nothing -> ['Nothing]
+--
+-- consturctorはデータ型の定義箇所で呼ばれる。
+-- (newtype のコンスラクタははidentity関数にbindされる)。
+-- 例えば Data.List.Types には List型が次のように定義されている。
+--
+--   data List a = Nil | Cons a (List a)
+--
+-- NilとConsコンストラクに対してそれぞれconstructor関数が呼ばれ,
+-- 次のコンストラクタ関数が定義される。
+--
+--   (defvar Data.List.Types.Nil (vector 'Nil))
+--   (defvar Data.List.Types.Cons (lambda (value0) (lambda (value1) (vector 'Cons value0 value1))))
+--
+-- ただList型に関しては特別に elisp に於けるリストで表現する。
+-- リストはlispに於いて普遍的に使われる構造でありリストを表現に持つデータ型により
+-- Elisp/PureScript間のデータの遣り取りが自然に書けるようになる。
+--
+-- NOTE: 空の場合はそもそも Vectorで囲む必要がないなど細かい最適化は可能
+constructor ::
+    Given ModuleName =>
+    ProperName 'TypeName ->
+    ProperName 'ConstructorName ->
+    [Ident] ->
+    SExp
+constructor (ProperName "List") cname ids
+    | ModuleName "Data.List.Types" <- currentModuleName =
+        case (cname, ids) of
+            (ProperName "Nil", []) ->
+                C.nil
+            (ProperName "Cons", [_, _]) ->
+                let args = localVar <$> NonEmptyPartial.fromList ids
+                    vals = map symbol $ NonEmpty.toList args
+                 in lambdaN args (funcallNative "cons" vals)
+            _ ->
+                error "Unexpected List constcutor"
+constructor tname cname ids =
     case NonEmpty.nonEmpty (map localVar ids) of
         Just args ->
             let vals = map symbol $ NonEmpty.toList args
@@ -289,14 +347,23 @@ constructor cname ids =
         Nothing ->
             construct cname []
   where
-    -- TODO: 空の場合はそもそも Vectorで囲む必要はないかな。
     construct :: ProperName 'ConstructorName -> [SExp] -> SExp
     construct cname vals =
         funcallNative "vector" $ quotedSymbol (constructorTag cname) : vals
 
 -- e.g. `[Foo ,e0 ,e1]
-constructorBinder :: ProperName 'ConstructorName -> [PPattern SExp] -> PPattern SExp
-constructorBinder cname binds =
+constructorBinder ::
+    ModuleName ->
+    ProperName 'TypeName ->
+    ProperName 'ConstructorName ->
+    [PPattern SExp] ->
+    PPattern SExp
+constructorBinder (ModuleName "Data.List.Types") (ProperName "List") cname binds =
+    case (cname, binds) of
+        (ProperName "Nil", []) -> PBackquotedList []
+        (ProperName "Cons", [car, cdr]) -> PBackquotedCons car cdr
+        _ -> error "Unexpected List binder"
+constructorBinder _ _ cname binds =
     PBackquotedVector $ Left (constructorTag cname) : map Right binds
 
 constructorTag :: ProperName 'ConstructorName -> Symbol

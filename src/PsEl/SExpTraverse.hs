@@ -54,7 +54,6 @@ freeVars p s = cata go s [] mempty
     go (Lambda1 sym body) ix vars = do
         body' <- body (ILambda1 : ix) (Set.insert sym vars)
         pure $ SExp $ Lambda1 sym body'
-
     go (Lambda0 body) ix vars = do
         body' <- body (ILambda0 : ix) vars
         pure $ SExp $ Lambda0 body'
@@ -86,7 +85,6 @@ freeVars p s = cata go s [] mempty
         f' <- f (IFunCall1 : ix) vars
         arg' <- arg (IArg : ix) vars
         pure $ SExp $ FunCall1 f' arg'
-
     go (FunCall0 f) ix vars = do
         f' <- f (IFunCall0 : ix) vars
         pure $ SExp $ FunCall0 f'
@@ -140,6 +138,10 @@ freeVars p s = cata go s [] mempty
                 <*> traverse (\e -> e (ICond : ix) vars') guard
                 <*> code (ITail : ix) vars'
 
+    -- 相互再帰のrecursion schemeを避けるため ppatternは手動での再帰関数。
+    -- 構造系では先にくる要素で束縛が存在しうることに注意。
+    -- PPatternの型パラメータ([Index] -> Set Symbol -> f SExp)が必要なのは pred と appのみ。
+    -- 第一引数の[Index]も pred/app に渡す際のみ必要(あとは変わっていない)。
     ppattern ::
         [Index] ->
         Set Symbol ->
@@ -175,6 +177,10 @@ freeVars p s = cata go s [] mempty
                     vars
                     es
          in (vars', PBackquotedVector <$> sequenceA es')
+    ppattern ix vars0 (PBackquotedCons car cdr) =
+        let (vars1, car') = ppattern ix vars0 car
+            (vars2, cdr') = ppattern ix vars1 cdr
+         in (vars2, PBackquotedCons <$> car' <*> cdr')
     ppattern ix vars (PAnd pps) =
         let (vars', pps') = mapAccumL (ppattern ix) vars pps
          in (vars', PAnd <$> sequenceA pps')

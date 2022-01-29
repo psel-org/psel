@@ -1,5 +1,5 @@
 { name = "test-lib"
-, dependencies = [ "prelude", "effect", "console", "assert", "refs" ]
+, dependencies = [ "prelude", "effect", "console", "assert", "refs", "lists" ]
 , packages =
     https://raw.githubusercontent.com/psel-org/package-sets/main/src/el-0.14.5-20211116/packages.dhall
 , backend = "psel"

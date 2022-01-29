@@ -162,6 +162,8 @@ convPcase exprs cases =
         Raw.backquote . Raw.list $ map (either Raw.symbol (commaMaybe . pattern')) ps
     pattern' (PBackquotedVector ps) =
         Raw.backquote . Raw.vector $ map (either Raw.symbol (commaMaybe . pattern')) ps
+    pattern' (PBackquotedCons car cdr) =
+        Raw.backquote $ Raw.cons (commaMaybe (pattern' car)) (commaMaybe (pattern' cdr))
     pattern' (PAnd ps) =
         Raw.list $ Raw.symbol "and" : map pattern' ps
     pattern' (PPred pred) =

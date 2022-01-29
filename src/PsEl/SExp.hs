@@ -85,6 +85,7 @@ data PPattern e
       -- backquote中では定数を意味するSymbolも出現する。
       PBackquotedList [Either Symbol (PPattern e)]
     | PBackquotedVector [Either Symbol (PPattern e)]
+    | PBackquotedCons (PPattern e) (PPattern e)
     | PAnd [PPattern e]
     | PPred e
     | -- | Boolは特別扱い(最適化でif文に変更しうるので)
