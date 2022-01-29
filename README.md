@@ -101,7 +101,8 @@ TCO will convert these self-resursive calls to `while` s-exp expression.
 
 ### MagicDo
 
-Implemented.
+Implemented only for `Effect` monad. 
+`ST` monad remains unoptimized. Also `whileE` and `forE` combinator of `Effect` monad is also untouched.
 
 ## TODO
 
