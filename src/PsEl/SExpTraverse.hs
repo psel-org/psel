@@ -132,7 +132,7 @@ freeVars p s = cata go s [] mempty
         PcaseAlt ([Index] -> Set Symbol -> f SExp) ->
         f (PcaseAlt SExp)
     pcaseAlt ix vars (PcaseAlt patterns guard code) =
-        let (vars', patterns') = mapAccumL (ppattern (ICond : ix)) vars patterns
+        let (vars', patterns') = mapAccumL ppattern vars $ map (fmap ($ (ICond : ix))) patterns
          in PcaseAlt
                 <$> sequenceA patterns'
                 <*> traverse (\e -> e (ICond : ix) vars') guard
@@ -140,54 +140,52 @@ freeVars p s = cata go s [] mempty
 
     -- 相互再帰のrecursion schemeを避けるため ppatternは手動での再帰関数。
     -- 構造系では先にくる要素で束縛が存在しうることに注意。
-    -- PPatternの型パラメータ([Index] -> Set Symbol -> f SExp)が必要なのは pred と appのみ。
-    -- 第一引数の[Index]も pred/app に渡す際のみ必要(あとは変わっていない)。
+    -- PPatternの型パラメータ(Set Symbol -> f SExp)が必要なのは pred と appのみ。
     ppattern ::
-        [Index] ->
         Set Symbol ->
-        PPattern ([Index] -> Set Symbol -> f SExp) ->
+        PPattern (Set Symbol -> f SExp) ->
         (Set Symbol, f (PPattern SExp))
-    ppattern ix vars PAny =
+    ppattern vars PAny =
         (vars, pure PAny)
-    ppattern ix vars (PInteger i) =
+    ppattern vars (PInteger i) =
         (vars, pure (PInteger i))
-    ppattern ix vars (PString s) =
+    ppattern vars (PString s) =
         (vars, pure (PString s))
-    ppattern ix vars (PCharacter c) =
+    ppattern vars (PCharacter c) =
         (vars, pure (PCharacter c))
-    ppattern ix vars (PBind sym) =
+    ppattern vars (PBind sym) =
         (Set.insert sym vars, pure (PBind sym))
-    ppattern ix vars (PBackquotedList es) =
+    ppattern vars (PBackquotedList es) =
         let (vars', es') =
                 mapAccumL
                     ( \vars e -> case e of
                         Left sym -> (vars, pure (Left sym))
-                        Right e' -> over _2 (fmap Right) $ ppattern ix vars e'
+                        Right e' -> over _2 (fmap Right) $ ppattern vars e'
                     )
                     vars
                     es
          in (vars', PBackquotedList <$> sequenceA es')
-    ppattern ix vars (PBackquotedVector es) =
+    ppattern vars (PBackquotedVector es) =
         let (vars', es') =
                 mapAccumL
                     ( \vars e -> case e of
                         Left sym -> (vars, pure (Left sym))
-                        Right e' -> over _2 (fmap Right) $ ppattern ix vars e'
+                        Right e' -> over _2 (fmap Right) $ ppattern vars e'
                     )
                     vars
                     es
          in (vars', PBackquotedVector <$> sequenceA es')
-    ppattern ix vars0 (PBackquotedCons car cdr) =
-        let (vars1, car') = ppattern ix vars0 car
-            (vars2, cdr') = ppattern ix vars1 cdr
+    ppattern vars0 (PBackquotedCons car cdr) =
+        let (vars1, car') = ppattern vars0 car
+            (vars2, cdr') = ppattern vars1 cdr
          in (vars2, PBackquotedCons <$> car' <*> cdr')
-    ppattern ix vars (PAnd pps) =
-        let (vars', pps') = mapAccumL (ppattern ix) vars pps
+    ppattern vars (PAnd pps) =
+        let (vars', pps') = mapAccumL ppattern vars pps
          in (vars', PAnd <$> sequenceA pps')
-    ppattern ix vars (PPred pred) =
-        (vars, PPred <$> pred ix vars)
-    ppattern ix vars (PPredBool b) =
+    ppattern vars (PPred pred) =
+        (vars, PPred <$> pred vars)
+    ppattern vars (PPredBool b) =
         (vars, pure (PPredBool b))
-    ppattern ix vars (PApp e pp) =
-        let (vars', pp') = ppattern ix vars pp
-         in (vars', PApp <$> e ix vars <*> pp')
+    ppattern vars (PApp e pp) =
+        let (vars', pp') = ppattern vars pp
+         in (vars', PApp <$> e vars <*> pp')
