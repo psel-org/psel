@@ -56,12 +56,35 @@ Double | Double
 String | String
 Array | Vector
 Char | Integer(elisp doen't have char type)
-Boolean | True -> t, False -> nil (elisp doesn't have boolean type)
+Boolean | True -> `t`, False -> `nil` (elisp doesn't have boolean type)
 Records | alist (e.g. `(('foo . 1) ('bar . "a"))`)
 Unit | nil
-Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. (e.g. `Just 42` -> `['Just 42]`)
+Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. <br/>e.g. `Just 42` -> `['Just 42]`<br/>e.g. `Nothing` -> `['Nothing]`
 
 ## Types with special treatment
+
+### List
+
+`Data.List.Types` module from `lists` package offers following type:
+
+```purescript
+data List a = Nil | Cons a (List a)
+```
+
+normally, this will be transpiled to:
+
+```elisp
+(defvar Data.List.Types.Nil (vector 'Nil))
+(defvar Data.List.Types.Cons (lambda (value0) (lambda (value1) (vector 'Cons value0 value1))))
+```
+
+but since list is an universally used data structor in elisp,
+we special transpiles it to following code to make `List a` type represented by elisp's list.
+
+```elisp
+(defvar Data.List.Types.Nil nil)
+(defvar Data.List.Types.Cons (lambda (value0) (lambda (value1) (cons value0 value1))))
+```
 
 ### Uncurried types
 
@@ -78,10 +101,7 @@ TCO will convert these self-resursive calls to `while` s-exp expression.
 
 ### MagicDo
 
-Not done yet.
-
-reference
-https://github.com/purescript/purescript-effect#the-effect-type-is-magic
+Implemented.
 
 ## TODO
 
@@ -90,6 +110,8 @@ https://github.com/purescript/purescript-effect#the-effect-type-is-magic
 * [x] Make an github orgiznation
 * [x] Make psel command spago friendly
 * [x] Create package-set
+* [x] Implement TCO
+* [x] Implement MagicDo
 * [ ] Support core libraries([WIP](https://github.com/psel-org/package-sets))
 * [ ] Minimal example and add Usage document
 * [ ] purescript-emacs
