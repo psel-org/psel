@@ -336,14 +336,14 @@ constructor (ProperName "List") cname ids
             (ProperName "Cons", [_, _]) ->
                 let args = localVar <$> NonEmptyPartial.fromList ids
                     vals = map symbol $ NonEmpty.toList args
-                 in lambdaN args (funcallNative "cons" vals)
+                 in lambda1Fold args (funcallNative "cons" vals)
             _ ->
                 error "Unexpected List constcutor"
 constructor tname cname ids =
     case NonEmpty.nonEmpty (map localVar ids) of
         Just args ->
             let vals = map symbol $ NonEmpty.toList args
-             in lambdaN args (construct cname vals)
+             in lambda1Fold args (construct cname vals)
         Nothing ->
             construct cname []
   where

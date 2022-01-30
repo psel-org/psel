@@ -82,6 +82,7 @@ convSExp = cata conv
     conv (Lambda0 body) = Raw.list $ [Raw.symbol "lambda", Raw.list []] <> eraseProgn body
     conv (FunCall1 f arg) = Raw.list [Raw.symbol "funcall", f, arg]
     conv (FunCall0 f) = Raw.list [Raw.symbol "funcall", f]
+    conv (FunCallN f args) = Raw.list $ [Raw.symbol "funcall", f] <> args
     conv (FunCallNative sym args) = Raw.list $ Raw.symbol sym : args
     conv (QuotedSymbol qs) = Raw.quote $ Raw.symbol qs
 

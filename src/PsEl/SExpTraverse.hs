@@ -32,6 +32,7 @@ data Index
     | -- funcall1(1引数呼出し)の対象
       IFunCall1
     | IFunCall0
+    | IFunCallN
 
 -- | `Taversal' SExp Symbol` for free variables
 freeVars ::
@@ -88,6 +89,10 @@ freeVars p s = cata go s [] mempty
     go (FunCall0 f) ix vars = do
         f' <- f (IFunCall0 : ix) vars
         pure $ SExp $ FunCall0 f'
+    go (FunCallN f args) ix vars = do
+        f' <- f (IFunCallN : ix) vars
+        args' <- traverse (\arg -> arg (IArg : ix) vars) args
+        pure $ SExp $ FunCallN f' args'
 
     -- 関数呼出し(ネイティブ)
     go (FunCallNative sym args) ix vars = do

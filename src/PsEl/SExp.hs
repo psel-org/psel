@@ -52,8 +52,13 @@ data SExpF e
     | -- | 1引数関数
       Lambda1 Symbol e
     | -- | 1引数関数の呼出し
-      -- e.g. FunCall1 a b -> (funcall a b)
+      -- e.g. FunCall1 f a -> (funcall f a)
       FunCall1 e e
+    | -- | 任意引数関数の呼出し
+      -- Data.Function.UncurriedのFn2などの呼出しを最適化するに利用する。
+      -- FunCall{0,1}も包含しているが,基本上記の最適化以外では利用しない。
+      -- e.g. FunCallN f [a0, .., an] -> (funcall f a0 a1 ... an)
+      FunCallN e [e]
     | -- | 任意引数のネイティブ関数の呼出し
       -- e.g. FunCallNative "foo" [a, b] -> (foo a b)
       FunCallNative Symbol [e]
@@ -148,13 +153,16 @@ lambda1 :: Symbol -> SExp -> SExp
 lambda1 arg body = SExp $ Lambda1 arg body
 
 -- e.g. (lambda (a) (lambda (b) ...))
-lambdaN :: NonEmpty Symbol -> SExp -> SExp
-lambdaN args body =
+lambda1Fold :: NonEmpty Symbol -> SExp -> SExp
+lambda1Fold args body =
     let a0 :| as = NonEmpty.reverse args
      in foldl' (flip lambda1) (lambda1 a0 body) as
 
 funcall1 :: SExp -> SExp -> SExp
 funcall1 f arg = SExp $ FunCall1 f arg
+
+funcallN :: SExp -> [SExp] -> SExp
+funcallN f args = SExp $ FunCallN f args
 
 lambda0 :: SExp -> SExp
 lambda0 = SExp . Lambda0

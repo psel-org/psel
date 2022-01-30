@@ -52,6 +52,7 @@ optimizeDefVar DefVar{name, definition} = flip evalState 0 . runOptimize $ do
     applyRewrite =
         cata
             ( magicDo
+                . directlyCallFns
                 . removeDataFunctions
                 . removeRebindOnlyPcase
                 . replacePcaseToIf
@@ -237,6 +238,37 @@ moduleEffect = PS.ModuleName "Effect"
 moduleControlApplicative = PS.ModuleName "Control.Applicative"
 moduleControlBind = PS.ModuleName "Control.Bind"
 
+-- 引数が全部与えられていた場合, FnN{0,..,10} を直接呼ぶ
+
+directlyCallFns :: SExp -> SExp
+directlyCallFns (P.FunCall1 (P.Symbol runFn0) f)
+    | runFn0 == identRunFn 0 = funcallN f []
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.Symbol runFn1) f) a0)
+    | runFn1 == identRunFn 1 = funcallN f [a0]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn2) f) a0) a1)
+    | runFn2 == identRunFn 2 = funcallN f [a0, a1]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn3) f) a0) a1) a2)
+    | runFn3 == identRunFn 3 = funcallN f [a0, a1, a2]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn4) f) a0) a1) a2) a3)
+    | runFn4 == identRunFn 4 = funcallN f [a0, a1, a2, a3]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn5) f) a0) a1) a2) a3) a4)
+    | runFn5 == identRunFn 5 = funcallN f [a0, a1, a2, a3, a4]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn6) f) a0) a1) a2) a3) a4) a5)
+    | runFn6 == identRunFn 6 = funcallN f [a0, a1, a2, a3, a4, a5]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn7) f) a0) a1) a2) a3) a4) a5) a6)
+    | runFn7 == identRunFn 7 = funcallN f [a0, a1, a2, a3, a4, a5, a6]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn8) f) a0) a1) a2) a3) a4) a5) a6) a7)
+    | runFn8 == identRunFn 8 = funcallN f [a0, a1, a2, a3, a4, a5, a6, a7]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn9) f) a0) a1) a2) a3) a4) a5) a6) a7) a8)
+    | runFn9 == identRunFn 9 = funcallN f [a0, a1, a2, a3, a4, a5, a6, a7, a8]
+directlyCallFns (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.FunCall1 (P.Symbol runFn10) f) a0) a1) a2) a3) a4) a5) a6) a7) a8) a9)
+    | runFn10 == identRunFn 10 = funcallN f [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9]
+directlyCallFns s = s
+
+identRunFn :: Int -> Symbol
+identRunFn i = globalVar moduleFunctionUncurried (PS.Ident $ "runFn" <> textDisplay i)
+moduleFunctionUncurried = PS.ModuleName "Data.Function.Uncurried"
+
 -- 自己再帰関数の最適化
 -- ただし最適化可能なケース全てに於いて最適化を実行できるわけではない。
 -- 差し当り自明なケースのみ最適化を実行する。
@@ -287,6 +319,7 @@ selfRecursiveTCO sym (args, body) = do
             | i > 0 -> isTC (i - 1) ixs
             | otherwise -> False -- (c)
         IFunCall0 -> False
+        IFunCallN -> False
 
     -- 例えば次の関数が最適化対象とする。
     --
