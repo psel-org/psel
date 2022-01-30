@@ -35,6 +35,8 @@ instance RS.Recursive SExp where
 -- Quote もSymbolにしか適用されていないので Quote e よりは QuotedSymbol Symbol として方が
 --
 -- ただ懸念としてはあまり上げすぎるとCoreFnと同じレベルになってしまう。
+--
+-- Lambda0/FunCall0はMagicDo実装のために導入
 data SExpF e
     = Integer Integer
     | Double Double
@@ -47,11 +49,13 @@ data SExpF e
     | Cond [(e, e)]
     | Let LetType [(Symbol, e)] e
     | Pcase [e] [PcaseAlt e]
-    | -- | 基本一引数のlambdaしか使わないので
+    | -- | 1引数関数
       Lambda1 Symbol e
     | -- | 1引数関数の呼出し
+      -- e.g. FunCall1 a b -> (funcall a b)
       FunCall1 e e
-    | -- | ネイティブ関数の呼出し(関数スロット)
+    | -- | 任意引数のネイティブ関数の呼出し
+      -- e.g. FunCallNative "foo" [a, b] -> (foo a b)
       FunCallNative Symbol [e]
     | -- | e.g. 'foo
       QuotedSymbol Symbol

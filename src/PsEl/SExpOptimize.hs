@@ -220,6 +220,8 @@ magicDo (P.FunCall1 (P.FunCall1 (P.Symbol pure) (P.Symbol applicativeEffect)) v)
 magicDo s = s
 
 -- NOTE: (lambda0 (funcall0 ..)) もなくせるかと思うが多分そのようなケースは発生しない
+-- NOTE: 良く考えたら上記のケースは (lambda0 (funcall 0 (let ((..)) x))) のケースが
+-- あるから多分fuseは駄目な気がする
 -- magicDo が cata で bottomup に適用されているので再帰除去は不要。
 fuse0 :: SExp -> SExp
 fuse0 (P.FunCall0 (P.Lambda0 a)) = a
