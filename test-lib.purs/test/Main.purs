@@ -6,12 +6,14 @@ import Effect.Ref as Ref
 import Effect.Console (log)
 import Test.Assert (assertEqual)
 import Data.List
+import Data.Function.Uncurried
 
 main :: Effect Unit
 main = do
   testApply
   testEffect
   testList
+  testFunctionUncurried
 
 testApply :: Effect Unit
 testApply = do
@@ -68,3 +70,19 @@ testList = do
  where
   f (Cons a (Cons b (Cons c Nil))) = a + b + c
   f _ = 0
+
+foreign import add2 :: Fn2 Int Int Int
+
+add2Wrapper :: Int -> Int -> Int
+add2Wrapper a b = runFn2 add2 a b
+
+testFunctionUncurried :: Effect Unit
+testFunctionUncurried = do
+  log "function uncurried(1)"
+  assertEqual { actual: runFn2 add2 1 2, expected: 3 }
+  log "function uncurried(2)"
+  let t = runFn2 add2 1
+  assertEqual { actual: t 3, expected: 4 }
+  assertEqual { actual: t 4, expected: 5 }
+  log "function uncurried(3)"
+  assertEqual { actual: add2Wrapper 1 2, expected: 3 }
