@@ -60,37 +60,8 @@ Boolean | True -> `t`, False -> `nil` (elisp doesn't have boolean type)
 Records | alist (e.g. `(('foo . 1) ('bar . "a"))`)
 Unit | nil
 Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. <br/>e.g. `Just 42` -> `['Just 42]`<br/>e.g. `Nothing` -> `['Nothing]`
-
-## Types with special treatment
-
-### List
-
-`Data.List.Types` module from `lists` package offers following type:
-
-```purescript
-data List a = Nil | Cons a (List a)
-```
-
-normally, this will be transpiled to:
-
-```elisp
-(defvar Data.List.Types.Nil (vector 'Nil))
-(defvar Data.List.Types.Cons (lambda (value0) (lambda (value1) (vector 'Cons value0 value1))))
-```
-
-but since list is an universally used data structor in elisp,
-we special transpiles it to following code to make `List a` type represented by elisp's list.
-
-```elisp
-(defvar Data.List.Types.Nil nil)
-(defvar Data.List.Types.Cons (lambda (value0) (lambda (value1) (cons value0 value1))))
-```
-
-### Uncurried types
-
-Not done yet.
-
-`Data.Function.Uncurried(funcitons package)` and `Effect.Uncurried(effects pacakge)`
+Tuple | `Tuple a b` -> `(cons a b)`
+List | `Cons 1 (Cons 2 Nil))` -> `(list 1 2)`
 
 ## Optimization
 
@@ -101,8 +72,14 @@ TCO will convert these self-resursive calls to `while` s-exp expression.
 
 ### MagicDo
 
-Implemented only for `Effect` monad. 
+Implemented only for `Effect` monad.
 `ST` monad remains unoptimized. Also `whileE` and `forE` combinator of `Effect` monad is also untouched.
+
+### Uncurried types
+
+Not done yet.
+
+`Data.Function.Uncurried(funcitons package)` and `Effect.Uncurried(effects pacakge)`
 
 ## TODO
 

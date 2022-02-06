@@ -321,6 +321,9 @@ case' ss cas = pcase ss cases
 -- リストはlispに於いて普遍的に使われる構造でありリストを表現に持つデータ型により
 -- Elisp/PureScript間のデータの遣り取りが自然に書けるようになる。
 --
+-- Tupleも同様の理由で特別な表現を持たせる。Tuple a b は (cons a b) で表現する。
+-- ListのConsコンストラクタと混同しないように。
+--
 -- NOTE: 空の場合はそもそも Vectorで囲む必要がないなど細かい最適化は可能
 constructor ::
     Given ModuleName =>
@@ -331,14 +334,14 @@ constructor ::
 constructor (ProperName "List") cname ids
     | ModuleName "Data.List.Types" <- currentModuleName =
         case (cname, ids) of
-            (ProperName "Nil", []) ->
-                C.nil
-            (ProperName "Cons", [_, _]) ->
-                let args = localVar <$> NonEmptyPartial.fromList ids
-                    vals = map symbol $ NonEmpty.toList args
-                 in lambda1Fold args (funcallNative "cons" vals)
-            _ ->
-                error "Unexpected List constcutor"
+            (ProperName "Nil", []) -> C.nil
+            (ProperName "Cons", [_, _]) -> constructorNative "cons" ids
+            _ -> error "Unexpected List constcutor"
+constructor (ProperName "Tuple") cname ids
+    | ModuleName "Data.Tuple" <- currentModuleName =
+        case (cname, ids) of
+            (ProperName "Tuple", [_, _]) -> constructorNative "cons" ids
+            _ -> error "Unexpected Tuple constcutor"
 constructor tname cname ids =
     case NonEmpty.nonEmpty (map localVar ids) of
         Just args ->
@@ -350,6 +353,14 @@ constructor tname cname ids =
     construct :: ProperName 'ConstructorName -> [SExp] -> SExp
     construct cname vals =
         funcallNative "vector" $ quotedSymbol (constructorTag cname) : vals
+
+-- 特別扱いのデータ型のみ使う
+constructorNative :: Symbol -> [Ident] -> SExp
+constructorNative name ids =
+    lambda1Fold args (funcallNative name vals)
+  where
+    args = localVar <$> NonEmptyPartial.fromList ids
+    vals = map symbol $ NonEmpty.toList args
 
 -- e.g. `[Foo ,e0 ,e1]
 constructorBinder ::
@@ -363,6 +374,10 @@ constructorBinder (ModuleName "Data.List.Types") (ProperName "List") cname binds
         (ProperName "Nil", []) -> PBackquotedList []
         (ProperName "Cons", [car, cdr]) -> PBackquotedCons car cdr
         _ -> error "Unexpected List binder"
+constructorBinder (ModuleName "Data.Tuple") (ProperName "Tuple") cname binds =
+    case (cname, binds) of
+        (ProperName "Tuple", [car, cdr]) -> PBackquotedCons car cdr
+        _ -> error "Unexpected Tuple binder"
 constructorBinder _ _ cname binds =
     PBackquotedVector $ Left (constructorTag cname) : map Right binds
 
