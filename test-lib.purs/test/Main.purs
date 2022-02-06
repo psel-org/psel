@@ -6,6 +6,7 @@ import Effect.Ref as Ref
 import Effect.Console (log)
 import Test.Assert (assertEqual)
 import Data.List
+import Data.Tuple as Tuple
 import Data.Function.Uncurried
 
 main :: Effect Unit
@@ -13,6 +14,7 @@ main = do
   testApply
   testEffect
   testList
+  testTuple
   testFunctionUncurried
 
 testApply :: Effect Unit
@@ -70,6 +72,15 @@ testList = do
  where
   f (Cons a (Cons b (Cons c Nil))) = a + b + c
   f _ = 0
+
+testTuple :: Effect Unit
+testTuple = do
+  log "tuple(1)"
+  assertEqual { actual: Tuple.fst a, expected: 1 }
+  log "tuple(2)"
+  assertEqual { actual: Tuple.snd a, expected: "a" }
+ where
+  a = Tuple.Tuple 1 "a"
 
 foreign import add2 :: Fn2 Int Int Int
 
