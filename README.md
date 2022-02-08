@@ -59,7 +59,7 @@ Char | Integer(elisp doen't have char type)
 Boolean | True -> `t`, False -> `nil` (elisp doesn't have boolean type)
 Records | alist (e.g. `(('foo . 1) ('bar . "a"))`)
 Unit | nil
-Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. <br/>e.g. `Just 42` -> `['Just 42]`<br/>e.g. `Nothing` -> `['Nothing]`
+Data types | Vector with constructor tag symbol in first slot and arguments in the remaining slots. Constructor with no argument will be represented by tag symbol only.<br/>e.g. `Just 42` -> `['Just 42]`<br/>e.g. `Nothing` -> `'Nothing`
 Tuple | `Tuple a b` -> `(cons a b)`
 List | `Cons 1 (Cons 2 Nil))` -> `(list 1 2)`
 

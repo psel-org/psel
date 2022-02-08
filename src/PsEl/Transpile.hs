@@ -301,9 +301,10 @@ case' ss cas = pcase ss cases
 -- | DataType
 
 -- データ型は先頭にタグの入ったベクターで表現する。
+-- ただし引数を持たないコンストラクタはシンボルのみで表現する。
 --
 -- e.g. Foo 1 2 -> ['Foo 1 2]
--- e.g. Nothing -> ['Nothing]
+-- e.g. Nothing -> 'Nothing
 --
 -- consturctorはデータ型の定義箇所で呼ばれる。
 -- (newtype のコンスラクタははidentity関数にbindされる)。
@@ -324,7 +325,6 @@ case' ss cas = pcase ss cases
 -- Tupleも同様の理由で特別な表現を持たせる。Tuple a b は (cons a b) で表現する。
 -- ListのConsコンストラクタと混同しないように。
 --
--- NOTE: 空の場合はそもそも Vectorで囲む必要がないなど細かい最適化は可能
 constructor ::
     Given ModuleName =>
     ProperName 'TypeName ->
@@ -346,13 +346,11 @@ constructor tname cname ids =
     case NonEmpty.nonEmpty (map localVar ids) of
         Just args ->
             let vals = map symbol $ NonEmpty.toList args
-             in lambda1Fold args (construct cname vals)
+             in lambda1Fold args
+                    . funcallNative "vector"
+                    $ quotedSymbol (constructorTag cname) : vals
         Nothing ->
-            construct cname []
-  where
-    construct :: ProperName 'ConstructorName -> [SExp] -> SExp
-    construct cname vals =
-        funcallNative "vector" $ quotedSymbol (constructorTag cname) : vals
+            quotedSymbol (constructorTag cname)
 
 -- 特別扱いのデータ型のみ使う
 constructorNative :: Symbol -> [Ident] -> SExp
@@ -378,6 +376,8 @@ constructorBinder (ModuleName "Data.Tuple") (ProperName "Tuple") cname binds =
     case (cname, binds) of
         (ProperName "Tuple", [car, cdr]) -> PBackquotedCons car cdr
         _ -> error "Unexpected Tuple binder"
+constructorBinder _ _ cname [] =
+    PSymbol (constructorTag cname)
 constructorBinder _ _ cname binds =
     PBackquotedVector $ PSymbol (constructorTag cname) : binds
 
