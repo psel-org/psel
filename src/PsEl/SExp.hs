@@ -89,11 +89,11 @@ data PPattern e
     | PInteger Integer
     | PString Text
     | PCharacter Char
+    | -- | 定数の意味でのシンボル(束縛せず)
+      PSymbol Symbol
     | PBind Symbol
-    | -- | pattern中基本裸の Symbol は束縛を意味するが,
-      -- backquote中では定数を意味するSymbolも出現する。
-      PBackquotedList [Either Symbol (PPattern e)]
-    | PBackquotedVector [Either Symbol (PPattern e)]
+    | PBackquotedList [PPattern e]
+    | PBackquotedVector [PPattern e]
     | PBackquotedCons (PPattern e) (PPattern e)
     | PAnd [PPattern e]
     | PPred e

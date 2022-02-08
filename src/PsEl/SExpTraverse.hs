@@ -158,27 +158,15 @@ freeVars p s = cata go s [] mempty
         (vars, pure (PString s))
     ppattern vars (PCharacter c) =
         (vars, pure (PCharacter c))
+    ppattern vars (PSymbol c) =
+        (vars, pure (PSymbol c))
     ppattern vars (PBind sym) =
         (Set.insert sym vars, pure (PBind sym))
     ppattern vars (PBackquotedList es) =
-        let (vars', es') =
-                mapAccumL
-                    ( \vars e -> case e of
-                        Left sym -> (vars, pure (Left sym))
-                        Right e' -> over _2 (fmap Right) $ ppattern vars e'
-                    )
-                    vars
-                    es
+        let (vars', es') = mapAccumL ppattern vars es
          in (vars', PBackquotedList <$> sequenceA es')
     ppattern vars (PBackquotedVector es) =
-        let (vars', es') =
-                mapAccumL
-                    ( \vars e -> case e of
-                        Left sym -> (vars, pure (Left sym))
-                        Right e' -> over _2 (fmap Right) $ ppattern vars e'
-                    )
-                    vars
-                    es
+        let (vars', es') = mapAccumL ppattern vars es
          in (vars', PBackquotedVector <$> sequenceA es')
     ppattern vars0 (PBackquotedCons car cdr) =
         let (vars1, car') = ppattern vars0 car

@@ -294,7 +294,7 @@ case' ss cas = pcase ss cases
     literalBinder (BooleanLiteral b) =
         PPredBool b
     literalBinder (ArrayLiteral bs) =
-        PBackquotedVector $ map (Right . binder) bs
+        PBackquotedVector $ map binder bs
     literalBinder (ObjectLiteral xs) =
         objectLiteralBinder $ map (over _2 binder) xs
 
@@ -379,7 +379,7 @@ constructorBinder (ModuleName "Data.Tuple") (ProperName "Tuple") cname binds =
         (ProperName "Tuple", [car, cdr]) -> PBackquotedCons car cdr
         _ -> error "Unexpected Tuple binder"
 constructorBinder _ _ cname binds =
-    PBackquotedVector $ Left (constructorTag cname) : map Right binds
+    PBackquotedVector $ PSymbol (constructorTag cname) : binds
 
 constructorTag :: ProperName 'ConstructorName -> Symbol
 constructorTag = mkSymbol . runProperName

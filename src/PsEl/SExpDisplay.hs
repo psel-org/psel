@@ -137,7 +137,7 @@ convPcase exprs cases =
     unifyPatterns = \case
         [] -> error "Empty pcase exprs"
         [p] -> p
-        ps -> PBackquotedList (map Right ps)
+        ps -> PBackquotedList ps
 
     caseAlt PcaseAlt{patterns, guard, code} =
         Raw.list $
@@ -157,12 +157,14 @@ convPcase exprs cases =
         Raw.string s
     pattern' (PCharacter c) =
         Raw.character c
+    pattern' (PSymbol sym) =
+        Raw.quote $ Raw.symbol sym
     pattern' (PBind sym) =
         Raw.symbol sym
     pattern' (PBackquotedList ps) =
-        Raw.backquote . Raw.list $ map (either Raw.symbol (commaMaybe . pattern')) ps
+        Raw.backquote . Raw.list $ map (commaMaybe . pattern') ps
     pattern' (PBackquotedVector ps) =
-        Raw.backquote . Raw.vector $ map (either Raw.symbol (commaMaybe . pattern')) ps
+        Raw.backquote . Raw.vector $ map (commaMaybe . pattern') ps
     pattern' (PBackquotedCons car cdr) =
         Raw.backquote $ Raw.cons (commaMaybe (pattern' car)) (commaMaybe (pattern' cdr))
     pattern' (PAnd ps) =
@@ -174,10 +176,12 @@ convPcase exprs cases =
     pattern' (PApp s p) =
         Raw.list [Raw.symbol "app", s, pattern' p]
 
-    -- 入れ子になっている不要な (`) は取り除かれる。
+    -- バッククオート中の入れ子になっている不要な (`)や(') を取り除く
     -- e.g. `[ ... ,`[...] -> `[ ... [...]
     commaMaybe :: Raw.SExp -> Raw.SExp
     commaMaybe (Raw.SExp (Raw.Backquote se)) =
+        se
+    commaMaybe (Raw.SExp (Raw.Quote se)) =
         se
     commaMaybe s
         | Raw.isLiteral s = s
